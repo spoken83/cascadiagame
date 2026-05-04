@@ -108,7 +108,7 @@
 					</li>
 				</ul>
 
-				<p class="has-text-centered selectedDecksFooter"><a href="scoring.html" target="_blank">View all scoring decks (A–D)</a></p>
+				<p class="has-text-centered selectedDecksFooter"><a href="scoring.html" id="openAllScoringDecks">View all scoring decks (A–D)</a></p>
 
 			</div>
 
@@ -635,6 +635,14 @@
 
 	<script type="module" src="https://unpkg.com/ionicons@5.0.0/dist/ionicons/ionicons.esm.js"></script>
 	<script nomodule="" src="https://unpkg.com/ionicons@5.0.0/dist/ionicons/ionicons.js"></script>
+
+	<div id="scoringDecksDrawer" aria-hidden="true">
+		<div class="scoringDecksDrawerBackdrop"></div>
+		<div class="scoringDecksDrawerPanel" role="dialog" aria-label="All scoring decks">
+			<button id="closeScoringDecksDrawer" class="scoringDecksDrawerClose" aria-label="Close">&times;</button>
+			<iframe class="scoringDecksDrawerFrame" title="All scoring decks"></iframe>
+		</div>
+	</div>
 
 	<script defer src="https://cdn.jsdelivr.net/npm/bulma-extensions@4.0.0/dist/js/bulma-extensions.min.js"></script>
 	<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>

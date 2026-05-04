@@ -3395,10 +3395,40 @@ function endOfGameSetup() {
 		$('#scoringTable-mobileFinalScoringModalTrigger .mobileActiveScoringFrame').css('display', 'block');
 
 		$('#tileTokenContainer.finalScoring #scoringTable-finalScoringContainer').removeClass('inactiveScoringItem').addClass('activeScoringItem');
+
+		// Game over — give the player a way back to the landing page.
+		if (!$('#endGameNewGameBtn').length) {
+			$('#container').append('<div id="endGameNewGameContainer"><button id="endGameNewGameBtn" class="button is-success">New Game</button></div>');
+		}
+
 		$('body').fadeIn('slow');
 	}, 600)
 
 }
+
+$(document).on(touchEvent, '#endGameNewGameBtn', function(){
+	clearGameState();
+	location.reload();
+});
+
+// "View all scoring decks" — opens scoring.html in an in-app drawer instead of a new page.
+$(document).on(touchEvent, '#openAllScoringDecks', function(e){
+	e.preventDefault();
+	var $iframe = $('#scoringDecksDrawer .scoringDecksDrawerFrame');
+	// Lazy-load: only set src the first time the drawer is opened.
+	if (!$iframe.attr('src')) $iframe.attr('src', 'scoring.html');
+	$('#scoringDecksDrawer').addClass('is-open').attr('aria-hidden', 'false');
+});
+
+$(document).on(touchEvent, '#closeScoringDecksDrawer, #scoringDecksDrawer .scoringDecksDrawerBackdrop', function(){
+	$('#scoringDecksDrawer').removeClass('is-open').attr('aria-hidden', 'true');
+});
+
+$(document).on('keydown', function(e){
+	if (e.key === 'Escape' && $('#scoringDecksDrawer').hasClass('is-open')) {
+		$('#scoringDecksDrawer').removeClass('is-open').attr('aria-hidden', 'true');
+	}
+});
 
 function debugShowTileIDs(){
 	$('.mapTileContainer.placedTile').each(function(){
