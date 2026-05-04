@@ -4658,7 +4658,7 @@ function calculateHawkTokenScoring() {
 		tokenScoring.hawk.totalScore = t[isolated];
 	} else if (deck === 'B') {
 		// Connected: hawk has no adjacent hawk AND has direct line of sight to another hawk
-		// (LOS = blocked by any animal token). 2..8+ → 5/9/12/16/20/24/28; <2 scores 0
+		// (LOS only blocked by other hawks). 2..8+ → 5/9/12/16/20/24/28; <2 scores 0
 		const t = { 2: 5, 3: 9, 4: 12, 5: 16, 6: 20, 7: 24, 8: 28 };
 		let connected = 0;
 		for (const id of hawkIDs) {
@@ -4890,15 +4890,16 @@ function neighbourTileInDirection(id, dir) {
 	return 'row-' + (row + m.rowDif) + '-column-' + (col + m.colDif);
 }
 
-// Strict line of sight from a hawk: walks in `dir`, returns the next hawk's ID if visible.
-// LOS is blocked by ANY placed animal token; passes through empty hexes/empty tiles.
+// Line of sight from a hawk: walks in `dir`, returns the first hawk's ID found.
+// Per Cascadia rules, ONLY other hawks block LOS — other animal tokens are ignored
+// (hawks fly high and see over them). Empty hexes/empty tiles also pass.
 function hawkLineOfSightFrom(id, dir) {
 	let curr = id;
 	for (let step = 0; step < 50; step++) {
 		curr = neighbourTileInDirection(curr, dir);
 		if (!curr) return null;
-		if (allPlacedTokens.hasOwnProperty(curr)) {
-			return allPlacedTokens[curr] === 'hawk' ? curr : null;
+		if (allPlacedTokens.hasOwnProperty(curr) && allPlacedTokens[curr] === 'hawk') {
+			return curr;
 		}
 	}
 	return null;
