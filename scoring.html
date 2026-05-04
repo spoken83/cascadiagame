@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cascadia — Wildlife Scoring Cards Reference</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.8.0/css/bulma.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&display=swap" rel="stylesheet" />
+
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+
+    <style>
+        body { background: #f5f3ee; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 2rem 1rem; }
+        h1.page-title { font-family: 'Architects Daughter', cursive; text-align: center; margin-bottom: 0.25rem; }
+        .page-subtitle { text-align: center; color: #6b6b6b; margin-bottom: 2.5rem; }
+        .wildlife-section { margin-bottom: 3rem; }
+        .wildlife-header { display: flex; align-items: center; gap: 0.75rem; border-bottom: 2px solid #8b6f3a; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+        .wildlife-header img { width: 48px; height: 48px; }
+        .wildlife-header h2 { font-family: 'Architects Daughter', cursive; font-size: 2rem; margin: 0; text-transform: capitalize; }
+        .deck-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; clear: both; }
+        .deck-card { background: white; border-radius: 6px; padding: 1rem 1.1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-top: 4px solid #b58a4f; }
+        .deck-card .deck-image { width: 100%; max-width: 200px; aspect-ratio: 180 / 385; object-fit: contain; display: block; margin: 0 auto 0.75rem; border-radius: 4px; }
+        .deck-card h3 { display: flex; align-items: baseline; gap: 0.5rem; margin: 0 0 0.5rem; }
+        .deck-card .deck-letter { font-weight: 700; color: #fff; background: #b58a4f; border-radius: 3px; padding: 0.05rem 0.45rem; font-size: 0.85rem; }
+        .deck-card .deck-name { font-size: 1.15rem; font-weight: 600; }
+        .deck-card .rule { font-size: 0.92rem; color: #555; font-style: italic; margin-bottom: 0.75rem; line-height: 1.35; }
+        .deck-card table { width: 100%; font-size: 0.92rem; }
+        .deck-card table th { background: #f0e7d6; }
+        .deck-card .formula { background: #f0e7d6; padding: 0.5rem 0.75rem; border-radius: 4px; font-weight: 600; }
+        .deck-card .bonus { margin-top: 0.5rem; font-size: 0.85rem; color: #b34b00; font-weight: 600; }
+        .nav-links { text-align: center; margin-top: 2rem; }
+        .nav-links a { margin: 0 0.5rem; }
+    </style>
+</head>
+<body>
+
+    <h1 class="page-title">Wildlife Scoring Cards</h1>
+    <p class="page-subtitle">All four scoring decks (A–D) for each Cascadia wildlife.</p>
+
+    <div class="container" id="scoringRoot"></div>
+
+    <div class="nav-links">
+        <a class="button is-info" href="index.html">Back to Game</a>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="js/data.js"></script>
+    <script>
+        (function () {
+            var wildlifeOrder = ['bear', 'elk', 'fox', 'hawk', 'salmon'];
+            var deckOrder = ['A', 'B', 'C', 'D'];
+
+            function escapeHtml(str) {
+                return String(str).replace(/[&<>"']/g, function (c) {
+                    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+                });
+            }
+
+            function renderDeck(card, wildlife) {
+                var cap = wildlife.charAt(0).toUpperCase() + wildlife.slice(1);
+                var imgSrc = 'img/scoring-goals/CD_' + cap + '-' + card.deck + '-full.png';
+                var html = '<div class="deck-card">';
+                html += '<img class="deck-image" src="' + imgSrc + '" alt="' + cap + ' deck ' + card.deck + ' card" onerror="this.style.display=\'none\'" />';
+                html += '<h3><span class="deck-letter">' + card.deck + '</span><span class="deck-name">' + escapeHtml(card.name) + '</span></h3>';
+                html += '<div class="rule">' + escapeHtml(card.rule) + '</div>';
+
+                if (card.formula) {
+                    html += '<div class="formula">' + escapeHtml(card.formula) + '</div>';
+                } else if (card.rows && card.rows.length) {
+                    html += '<table class="table is-narrow is-fullwidth"><thead><tr>';
+                    var header = card.header || ['', 'Points'];
+                    html += '<th>' + escapeHtml(header[0]) + '</th><th>' + escapeHtml(header[1]) + '</th>';
+                    html += '</tr></thead><tbody>';
+                    card.rows.forEach(function (row) {
+                        html += '<tr><td>' + escapeHtml(row[0]) + '</td><td><strong>' + escapeHtml(row[1]) + '</strong></td></tr>';
+                    });
+                    html += '</tbody></table>';
+                }
+
+                if (card.bonus) {
+                    html += '<div class="bonus">+' + card.bonus.points + ' — ' + escapeHtml(card.bonus.description) + '</div>';
+                }
+
+                html += '</div>';
+                return html;
+            }
+
+            function renderWildlife(wildlife) {
+                var decks = wildlifeScoringDecks[wildlife];
+                if (!decks) return '';
+
+                var section = '<section class="wildlife-section" id="section-' + wildlife + '">';
+                section += '<div class="wildlife-header">';
+                section += '<img src="img/tokens/' + wildlife + '.png" alt="' + wildlife + ' token" />';
+                section += '<h2>' + wildlife + '</h2>';
+                section += '</div>';
+
+                section += '<div class="deck-grid">';
+                deckOrder.forEach(function (d) {
+                    if (decks[d]) section += renderDeck(decks[d], wildlife);
+                });
+                section += '</div>';
+                section += '</section>';
+
+                return section;
+            }
+
+            var html = '';
+            wildlifeOrder.forEach(function (w) { html += renderWildlife(w); });
+            document.getElementById('scoringRoot').innerHTML = html;
+        })();
+    </script>
+</body>
+</html>

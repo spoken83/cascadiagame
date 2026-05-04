@@ -613,5 +613,173 @@ var tiles = [
         wildlife: ['fox', 'bear'],
         rotation: 0 // increments of 60
     }
-    
+
 ]
+
+// Wildlife Scoring Cards — all four decks (A/B/C/D) for each wildlife.
+// Structure:
+//   wildlifeScoringDecks[wildlife][deck] = {
+//     deck:    'A' | 'B' | 'C' | 'D'
+//     name:    short title from the card (e.g. "Mating Pairs")
+//     rule:    the descriptive sentence printed at the bottom of the card
+//     header:  optional [leftLabel, rightLabel] for the points table
+//     rows:    array of [key, points] pairs (key may be a size, pair count, line length, etc.)
+//     bonus:   optional { points: number, description: string } for extra conditions (e.g. Bear C "+3 if all 3 group sizes")
+//     formula: optional human-readable formula for cards whose scoring isn't a simple table (Hawk C, Salmon D)
+//   }
+var wildlifeScoringDecks = {
+    bear: {
+        A: {
+            deck: 'A',
+            name: 'Mating Pairs',
+            rule: 'Scores for number of pairs of BEARS with no other BEARS next to them.',
+            header: ['Pairs', 'Points'],
+            rows: [['1', 4], ['2', 11], ['3', 19], ['4+', 27]]
+        },
+        B: {
+            deck: 'B',
+            name: 'Mother and Cubs',
+            rule: 'Scores per group of three BEARS (any shape) with no other BEARS next to it.',
+            header: ['Group', 'Points'],
+            rows: [['Exactly 3', 10]]
+        },
+        C: {
+            deck: 'C',
+            name: 'Families',
+            rule: 'Scores for each group of BEARS with no other BEARS next to it.',
+            header: ['Group Size', 'Points'],
+            rows: [['1', 2], ['2', 5], ['3', 8]],
+            bonus: { points: 3, description: 'Bonus for having all 3 group sizes' }
+        },
+        D: {
+            deck: 'D',
+            name: 'Big Groups',
+            rule: 'Scores per group of BEARS (any shape) with no other BEARS next to it.',
+            header: ['Group Size', 'Points'],
+            rows: [['2', 5], ['3', 8], ['4', 13]]
+        }
+    },
+    elk: {
+        A: {
+            deck: 'A',
+            name: 'Lines',
+            rule: 'Scores per straight line of ELK (each ELK may only score for a single line).',
+            header: ['Line Length', 'Points'],
+            rows: [['1', 2], ['2', 5], ['3', 9], ['4', 13]]
+        },
+        B: {
+            deck: 'B',
+            name: 'Formations',
+            rule: 'Scores per group of ELK in the exact shape shown (each ELK may only score for a single group).',
+            header: ['Shape', 'Points'],
+            rows: [
+                ['Single elk', 2],
+                ['Pair (2 side-by-side)', 5],
+                ['Trio (1 on top, 2 below)', 9],
+                ['Diamond (4 elk)', 13]
+            ]
+        },
+        C: {
+            deck: 'C',
+            name: 'Herds',
+            rule: 'Scores for each group of ELK in any shape.',
+            header: ['Group Size', 'Points'],
+            rows: [['1', 2], ['2', 4], ['3', 7], ['4', 10], ['5', 14], ['6', 18], ['7', 23], ['8+', 29]]
+        },
+        D: {
+            deck: 'D',
+            name: 'Rings',
+            rule: 'Scores per group of ELK in a circular formation (each ELK may only score for a single group).',
+            header: ['Ring Size', 'Points'],
+            rows: [['1', 2], ['2', 5], ['3', 8], ['4', 12], ['5', 16], ['6', 21]]
+        }
+    },
+    fox: {
+        A: {
+            deck: 'A',
+            name: 'Nearby Animals',
+            rule: 'Scores for each FOX, number of unique adjacent animal types (FOXES count).',
+            header: ['Unique Types', 'Points (per fox)'],
+            rows: [['1', 1], ['2', 2], ['3', 3], ['4', 4], ['5', 5]]
+        },
+        B: {
+            deck: 'B',
+            name: 'Nearby Pairs',
+            rule: 'Scores for each FOX, number of unique adjacent animal pairs (FOXES do not count).',
+            header: ['Unique Pairs', 'Points (per fox)'],
+            rows: [['1', 3], ['2', 5], ['3', 7]]
+        },
+        C: {
+            deck: 'C',
+            name: 'Nearby Related',
+            rule: 'Scores for each FOX, the number of a single adjacent animal type (FOXES do not count).',
+            header: ['Same-type Count', 'Points (per fox)'],
+            rows: [['1', 1], ['2', 2], ['3', 3], ['4', 4], ['5', 5], ['6', 6]]
+        },
+        D: {
+            deck: 'D',
+            name: 'Dynamic Duos',
+            rule: 'Scores for each FOX pair, number of unique adjacent animal pairs (FOXES do not count).',
+            header: ['Adjacent Pairs', 'Points (per fox pair)'],
+            rows: [['1', 5], ['2', 7], ['3', 9], ['4', 11]]
+        }
+    },
+    hawk: {
+        A: {
+            deck: 'A',
+            name: 'Solitary',
+            rule: 'Scores for each HAWK that is not adjacent to any other HAWK.',
+            header: ['Hawks', 'Points'],
+            rows: [['1', 2], ['2', 5], ['3', 8], ['4', 11], ['5', 14], ['6', 18], ['7', 22], ['8+', 26]]
+        },
+        B: {
+            deck: 'B',
+            name: 'Connected',
+            rule: 'Scores for each HAWK that is not adjacent to any other HAWK and has a direct line of sight to a HAWK.',
+            header: ['Hawks', 'Points'],
+            rows: [['2', 5], ['3', 9], ['4', 12], ['5', 16], ['6', 20], ['7', 24], ['8+', 28]]
+        },
+        C: {
+            deck: 'C',
+            name: 'Network',
+            rule: 'Scores for each direct line of sight between two non-adjacent HAWKS.',
+            formula: '3 points per line of sight'
+        },
+        D: {
+            deck: 'D',
+            name: 'Territorial',
+            rule: 'Scores for each pair of HAWKS, number of unique animal types between them (each HAWK only counts once).',
+            header: ['Unique Types Between', 'Points (per hawk pair)'],
+            rows: [['1', 4], ['2', 7], ['3+', 9]]
+        }
+    },
+    salmon: {
+        A: {
+            deck: 'A',
+            name: 'Long Run',
+            rule: 'Scores for each run, per SALMON (runs may not be adjacent to each other).',
+            header: ['Run Size', 'Points'],
+            rows: [['1', 2], ['2', 5], ['3', 8], ['4', 12], ['5', 16], ['6', 20], ['7+', 25]]
+        },
+        B: {
+            deck: 'B',
+            name: 'Short Run',
+            rule: 'Scores for each run, per SALMON (runs may not be adjacent to each other).',
+            header: ['Run Size', 'Points'],
+            rows: [['1', 2], ['2', 4], ['3', 9], ['4', 11], ['5+', 17]]
+        },
+        C: {
+            deck: 'C',
+            name: 'Families',
+            rule: 'Scores for each run of 3, 4, or 5+ SALMON (runs may not be adjacent to each other). Runs of 1 or 2 do not score.',
+            header: ['Run Size', 'Points'],
+            rows: [['3', 10], ['4', 12], ['5+', 15]]
+        },
+        D: {
+            deck: 'D',
+            name: 'Surrounded',
+            rule: 'Scores per SALMON, and per animal adjacent to a run of at least 3 (runs may not be adjacent).',
+            formula: '1 point per salmon + 1 point per unique adjacent animal (for runs of size ≥ 3)'
+        }
+    }
+};

@@ -167,15 +167,320 @@ function checkScreenWidth(){
 
 }
 
+// Tracks the randomly-selected scoring deck (A/B/C/D) per wildlife.
+// Populated by selectRandomDecks() on page load and on re-shuffle.
+// NOTE: Scoring code in calculate*TokenScoring() still uses Deck A formulas
+// regardless of what's selected here — wiring up B/C/D is a separate task.
+var selectedDecks = { bear: 'A', elk: 'A', fox: 'A', hawk: 'A', salmon: 'A' };
+
+var deckLetters = ['A', 'B', 'C', 'D'];
+var wildlifeOrderForDecks = ['bear', 'elk', 'fox', 'hawk', 'salmon'];
+
+function selectRandomDecks() {
+	for (let i = 0; i < wildlifeOrderForDecks.length; i++) {
+		let w = wildlifeOrderForDecks[i];
+		selectedDecks[w] = deckLetters[Math.floor(Math.random() * deckLetters.length)];
+	}
+}
+
+function scoringCardImg(w, letter, variant) {
+	// variant: 'mini' (default, for in-game) | 'full' (for landing/scoring.html)
+	let suffix = variant === 'full' ? 'full' : 'mini';
+	let cap = w.charAt(0).toUpperCase() + w.slice(1);
+	return 'img/scoring-goals/CD_' + cap + '-' + letter + '-' + suffix + '.png';
+}
+
+function syncSelectedDecksModals(variant) {
+	// Keeps each per-wildlife scoring modal's image + title in sync with the current selectedDecks.
+	for (let i = 0; i < wildlifeOrderForDecks.length; i++) {
+		let w = wildlifeOrderForDecks[i];
+		let letter = selectedDecks[w];
+		let imgPath = scoringCardImg(w, letter, variant);
+		let card = (typeof wildlifeScoringDecks !== 'undefined') ? wildlifeScoringDecks[w][letter] : null;
+		$('#' + w + 'ScoringModal .goalScoringModalImg').attr('src', imgPath);
+		if (card) {
+			$('#' + w + 'ScoringModal .modal-card-title').text(
+				w.charAt(0).toUpperCase() + w.slice(1) + ' Scoring — Deck ' + letter + ' (' + card.name + ')'
+			);
+		}
+	}
+}
+
+function renderSelectedDecks(animate) {
+	for (let i = 0; i < wildlifeOrderForDecks.length; i++) {
+		let w = wildlifeOrderForDecks[i];
+		let letter = selectedDecks[w];
+		let card = (typeof wildlifeScoringDecks !== 'undefined') ? wildlifeScoringDecks[w][letter] : null;
+		let $li = $('#selectedDecksList li[data-wildlife="' + w + '"]');
+		$li.find('.selectedDeckLetter').text(letter);
+		$li.find('.selectedDeckImg').attr('src', scoringCardImg(w, letter, 'full'));
+		$li.find('.selectedDeckName').text(card ? card.name : '');
+		if (animate) {
+			let $cardEl = $li.find('.selectedDeckCard');
+			$cardEl.removeClass('justShuffled');
+			void $cardEl[0].offsetWidth; // force reflow so the animation can replay
+			$cardEl.addClass('justShuffled');
+		}
+	}
+	syncSelectedDecksModals('full');
+}
+
+function applySelectedDecksToGameUI() {
+	for (let i = 0; i < wildlifeOrderForDecks.length; i++) {
+		let w = wildlifeOrderForDecks[i];
+		let letter = selectedDecks[w];
+		let imgPath = scoringCardImg(w, letter, 'mini');
+		// In-game side panel thumbnails
+		$('#' + w + '-ScoringModalTrigger .goalScoringThumbnail').attr('src', imgPath);
+		// End-game top-row thumbnails (desktop + mobile). These elements are static in
+		// index.html but their src is hardcoded to the deck-A art.
+		$('#' + w + '-FinalScoringModalTrigger .goalScoringThumbnail').attr('src', imgPath);
+		$('#' + w + '-mobileFinalScoringModalTrigger .mobileGoalScoringThumbnail').attr('src', imgPath);
+		// Goal layer overlay (full-screen when "Show Goals" is tapped) — one for tablet, one for mobile.
+		$('#quickViewGoalImg-' + w).attr('src', imgPath);
+		$('#quickViewTabletGoalLayerList img.goalLayerScoring').each(function (idx, el) {
+			if (wildlifeOrderForDecks[idx] === w) $(el).attr('src', imgPath);
+		});
+		$('#quickViewGoalThumnail-' + w + ' .mobileThumbnailImg').attr('src', imgPath);
+		// End-game dynamic per-wildlife scoring panel (#X-finalScoringContainer is built
+		// inside endOfGameSetup; the first <img> is the large card art — uses the full,
+		// not mini, since this panel has more space). No-op if the element doesn't exist
+		// yet (called pre-game from #commenceGame).
+		$('#' + w + '-finalScoringContainer > img').first().attr('src', scoringCardImg(w, letter, 'full'));
+	}
+	syncSelectedDecksModals('mini');
+}
+
+// ---- Persistence (localStorage) ----
+// Auto-saves the in-progress game so a refresh/close doesn't lose it. Saves after
+// each turn ends, after duplicate-token replacement, after nature-token actions,
+// and on `beforeunload` as a safety net. Cleared at game over and on "New Game".
+var SAVE_KEY = 'cascadia.gameState.v1';
+var gameInProgress = false;
+
+function saveGameState() {
+	if (typeof localStorage === 'undefined') return;
+	try {
+		var state = {
+			version: 1,
+			savedAt: Date.now(),
+			selectedDecks: selectedDecks,
+			turnsLeft: turnsLeft,
+			natureCubesNum: natureCubesNum,
+			duplicatesClearedThisTurn: duplicatesClearedThisTurn,
+			zoomLevel: zoomLevel,
+			mapData: mapData,
+			mapRowsColumnsIndexes: mapRowsColumnsIndexes,
+			mapStatsExtremes: mapStats.tileExtremes,
+			mapStatsDirectionStatus: mapStats.directionStatus,
+			mapMoveTilePos: mapMoveAmount.tilePos,
+			allTiles: allTiles,
+			allTokens: allTokens,
+			initialTiles: initialTiles,
+			initialTokens: initialTokens,
+			displayedTokens: displayedTokens
+		};
+		localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+	} catch (e) {
+		// Swallow quota / serialization errors — saving is best-effort.
+		console && console.warn && console.warn('cascadia: saveGameState failed', e);
+	}
+}
+
+function loadGameState() {
+	if (typeof localStorage === 'undefined') return null;
+	try {
+		var raw = localStorage.getItem(SAVE_KEY);
+		if (!raw) return null;
+		var parsed = JSON.parse(raw);
+		if (!parsed || parsed.version !== 1) return null;
+		return parsed;
+	} catch (e) { return null; }
+}
+
+function clearGameState() {
+	if (typeof localStorage === 'undefined') return;
+	try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+	gameInProgress = false;
+}
+
+function hasSavedGame() {
+	return loadGameState() !== null;
+}
+
+// Rebuilds the 4-slot market HTML from initialTiles/initialTokens *without*
+// consuming new tiles (unlike setupInitialTokensAndTiles). Used on resume.
+function rebuildMarketFromState() {
+	var html = '';
+	for (var k = 0; k < initialTiles.length && k < 4; k++) {
+		html += '<div class="tokenTileContainer" tokenTileNum="' + k + '">';
+		html += generateDisplayTile(initialTiles[k]);
+		html += '<div class="tokenContainer" wildlifetoken="' + initialTokens[k] + '">';
+		html += '<img class="token" src="img/tokens/' + initialTokens[k] + '.png" />';
+		html += '</div>';
+		html += '</div>';
+	}
+	$('#tileTokenContainer').html(html);
+}
+
+function restoreGameState() {
+	var state = loadGameState();
+	if (!state) return false;
+
+	selectedDecks = state.selectedDecks || selectedDecks;
+	turnsLeft = state.turnsLeft;
+	natureCubesNum = state.natureCubesNum || 0;
+	duplicatesClearedThisTurn = !!state.duplicatesClearedThisTurn;
+	zoomLevel = state.zoomLevel || 10;
+	mapData = state.mapData;
+	mapRowsColumnsIndexes = state.mapRowsColumnsIndexes;
+	if (state.mapStatsExtremes) mapStats.tileExtremes = state.mapStatsExtremes;
+	if (state.mapStatsDirectionStatus) mapStats.directionStatus = state.mapStatsDirectionStatus;
+	if (state.mapMoveTilePos) mapMoveAmount.tilePos = state.mapMoveTilePos;
+	allTiles = state.allTiles || [];
+	allTokens = state.allTokens || [];
+	initialTiles = state.initialTiles || [];
+	initialTokens = state.initialTokens || [];
+	displayedTokens = state.displayedTokens || [];
+
+	$('body').addClass('gameView');
+	$('.layer').hide();
+	$('#gameLayer').show();
+
+	renderSelectedDecks(false);
+	applySelectedDecksToGameUI();
+	rebuildMarketFromState();
+	generateMap();
+
+	$('.turnsLeftFigure').html(turnsLeft);
+	if (turnsLeft <= 0) {
+		$('#turnsAndNatureTokenContainer').addClass('has-text-danger');
+		$('#mobileTurnsAndNatureTokenContainer').addClass('has-text-danger');
+	}
+	updateNatureCubesNum(natureCubesNum > 0);
+	checkDuplicateTokens();
+
+	gameInProgress = true;
+	return true;
+}
+
 $(document).ready(function(){
 	let subTitleText = $('#setupLayer.layer .subtitle.is-6').html();
-	setupTiles(46); // Enter total number of tiles to be used in game as argument
+	setupTiles(43); // Solo follows 2-player setup per rulebook = 43 of 85 deck tiles
 	setupTokens();
 	// setupScoringGoals(scoringGoalMode); //all or beginner
 	updateNextTurn('setup');
 	checkScreenWidth();
 
+	selectRandomDecks();
+	renderSelectedDecks(false);
+
+	// Auto-resume in-progress game if one was saved.
+	if (hasSavedGame()) {
+		restoreGameState();
+	}
 })
+
+window.addEventListener('beforeunload', function(){
+	if (gameInProgress) saveGameState();
+});
+
+$(document).on(touchEvent, '#reshuffleDecks', function(){
+	selectRandomDecks();
+	renderSelectedDecks(true);
+});
+
+$(document).on(touchEvent, '#selectedDecksList li', function(){
+	let w = $(this).attr('data-wildlife');
+	if (!w) return;
+	$('#' + w + 'ScoringModal.modal').addClass('is-active');
+});
+
+var cardsInPlayView = 'cards';
+
+function escapeForHtml(s) {
+	return String(s).replace(/[&<>"']/g, function (c) {
+		return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+	});
+}
+
+function renderCardsInPlayAsCards() {
+	let html = '';
+	for (let i = 0; i < wildlifeOrderForDecks.length; i++) {
+		let w = wildlifeOrderForDecks[i];
+		let letter = selectedDecks[w];
+		let card = (typeof wildlifeScoringDecks !== 'undefined') ? wildlifeScoringDecks[w][letter] : null;
+		html += '<div class="cardInPlay">';
+		html += '<div class="cardInPlayHeader">';
+		html += '<img class="cardInPlayToken" src="img/tokens/' + w + '.png" alt="' + w + ' token" />';
+		html += '<span class="cardInPlayLetter">' + letter + '</span>';
+		html += '</div>';
+		html += '<img class="cardInPlayImg" src="' + scoringCardImg(w, letter, 'mini') + '" alt="' + w + ' deck ' + letter + '" />';
+		html += '<p class="cardInPlayName">' + (card ? escapeForHtml(card.name) : '') + '</p>';
+		html += '</div>';
+	}
+	$('#cardsInPlayGrid').html(html);
+}
+
+function renderCardsInPlayAsTables() {
+	let html = '';
+	for (let i = 0; i < wildlifeOrderForDecks.length; i++) {
+		let w = wildlifeOrderForDecks[i];
+		let letter = selectedDecks[w];
+		let card = (typeof wildlifeScoringDecks !== 'undefined') ? wildlifeScoringDecks[w][letter] : null;
+		if (!card) continue;
+		html += '<div class="cardInPlay">';
+		html += '<div class="cardInPlayHeader">';
+		html += '<img class="cardInPlayToken" src="img/tokens/' + w + '.png" alt="' + w + ' token" />';
+		html += '<span class="cardInPlayLetter">' + letter + '</span>';
+		html += '</div>';
+		html += '<p class="cardInPlayName">' + escapeForHtml(card.name) + '</p>';
+
+		if (card.formula) {
+			html += '<div class="cardInPlayFormula">' + escapeForHtml(card.formula) + '</div>';
+		} else if (card.rows && card.rows.length) {
+			let header = card.header || ['', 'Points'];
+			html += '<table class="table is-narrow is-fullwidth"><thead><tr>';
+			html += '<th>' + escapeForHtml(header[0]) + '</th><th>' + escapeForHtml(header[1]) + '</th>';
+			html += '</tr></thead><tbody>';
+			for (let r = 0; r < card.rows.length; r++) {
+				html += '<tr><td>' + escapeForHtml(card.rows[r][0]) + '</td><td><strong>' + escapeForHtml(card.rows[r][1]) + '</strong></td></tr>';
+			}
+			html += '</tbody></table>';
+		}
+
+		if (card.bonus) {
+			html += '<div class="cardInPlayBonus">+' + card.bonus.points + ' — ' + escapeForHtml(card.bonus.description) + '</div>';
+		}
+		html += '<div class="cardInPlayRule">' + escapeForHtml(card.rule) + '</div>';
+		html += '</div>';
+	}
+	$('#cardsInPlayGrid').html(html);
+}
+
+function renderCardsInPlayModal() {
+	if (cardsInPlayView === 'tables') renderCardsInPlayAsTables();
+	else renderCardsInPlayAsCards();
+}
+
+$(document).on(touchEvent, '.viewAllCardsInPlayBtn', function(){
+	renderCardsInPlayModal();
+	$('#cardsInPlayModal').addClass('is-active');
+});
+
+$(document).on(touchEvent, '#newGameBtn', function(){
+	if (confirm('Abandon this game and start a new one? Your current board will be lost.')) {
+		clearGameState();
+		location.reload();
+	}
+});
+
+$(document).on(touchEvent, '.cardsInPlayViewBtn', function(){
+	cardsInPlayView = $(this).attr('data-view');
+	$('.cardsInPlayViewBtn').removeClass('is-info');
+	$(this).addClass('is-info');
+	renderCardsInPlayModal();
+});
 
 $(document).keydown(function(e){
 
@@ -418,14 +723,18 @@ $(document).on(touchEvent,'#startGame',function(){
 });
 
 $(document).on(touchEvent,'#commenceGame',function(){
+	clearGameState(); // wipe any prior save — starting a fresh game
 	$('body').addClass('gameView');
 	$('.layer').hide();
 	$('#gameLayer').show();
 	// setupGoalTileThumbnails();
+	applySelectedDecksToGameUI();
 	setupInitialTokensAndTiles();
 	initiateMap();
 	// set to false since there are no Nature Tokens to use at the start of the game
 	updateNatureCubesNum(false);
+	gameInProgress = true;
+	saveGameState();
 });
 
 $(document).on(touchEvent,'#goalTilesContainer #goalList .goalScoring',function(){
@@ -521,6 +830,117 @@ $(document).on(touchEvent,'.mapNavigation .navArrow',function(){
 	let thisDirection = $(this).attr('direction');
 	processMapMovement(thisDirection);
 });
+
+// Drag-to-pan: mouse on desktop, two-finger drag on touch.
+// Each STEP_PIXELS of cursor/finger movement triggers one processMapMovement step.
+(function setupMapDrag() {
+	var STEP_PIXELS = 55;
+	var TAP_THRESHOLD = 6;
+
+	var mouseDragActive = false, mouseMoved = false;
+	var startX = 0, startY = 0, lastX = 0, lastY = 0;
+	var accumX = 0, accumY = 0;
+	var twoFingerActive = false;
+
+	function tryStep(direction) {
+		if (!mapStats || !mapStats.directionStatus) return;
+		if (mapStats.directionStatus[direction] === 'unlocked') {
+			processMapMovement(direction);
+		}
+	}
+
+	// Convert finger/cursor delta into stepped pan calls.
+	// Finger-drag-right reveals more of the left side of the map → 'left'.
+	function consumeDelta(dx, dy) {
+		accumX += dx; accumY += dy;
+		while (accumX >= STEP_PIXELS)  { tryStep('left');  accumX -= STEP_PIXELS; }
+		while (accumX <= -STEP_PIXELS) { tryStep('right'); accumX += STEP_PIXELS; }
+		while (accumY >= STEP_PIXELS)  { tryStep('up');    accumY -= STEP_PIXELS; }
+		while (accumY <= -STEP_PIXELS) { tryStep('down');  accumY += STEP_PIXELS; }
+	}
+
+	function isOnInteractive(target) {
+		// Don't start a pan when the press lands on a placed tile, the placement-options bar, or the zoom buttons.
+		var $t = $(target);
+		return !!($t.closest('.mapTileContainer .tileContainer').length
+			|| $t.closest('#placedTileOptions').length
+			|| $t.closest('.zoomOptions').length
+			|| $t.closest('.mapNavigation').length);
+	}
+
+	// --- Mouse (desktop) ---
+	$(document).on('mousedown', '#mapContainer', function (e) {
+		if (e.button !== 0) return;
+		if (isOnInteractive(e.target)) return;
+		mouseDragActive = true;
+		mouseMoved = false;
+		startX = lastX = e.clientX;
+		startY = lastY = e.clientY;
+		accumX = 0; accumY = 0;
+		$('#mapContainer').addClass('grabbing');
+	});
+
+	$(document).on('mousemove', function (e) {
+		if (!mouseDragActive) return;
+		var dx = e.clientX - lastX, dy = e.clientY - lastY;
+		lastX = e.clientX; lastY = e.clientY;
+		if (!mouseMoved && (Math.abs(e.clientX - startX) > TAP_THRESHOLD || Math.abs(e.clientY - startY) > TAP_THRESHOLD)) {
+			mouseMoved = true;
+		}
+		if (mouseMoved) {
+			consumeDelta(dx, dy);
+			e.preventDefault();
+		}
+	});
+
+	$(document).on('mouseup mouseleave', function () {
+		if (!mouseDragActive) return;
+		mouseDragActive = false;
+		$('#mapContainer').removeClass('grabbing');
+		if (mouseMoved) {
+			// Suppress the click that follows so it doesn't trigger a tile-placement on the cell we released over.
+			var killClick = function (ev) {
+				ev.stopPropagation();
+				ev.preventDefault();
+				document.removeEventListener('click', killClick, true);
+			};
+			document.addEventListener('click', killClick, true);
+			// Safety: if no click fires, drop the trap on next frame.
+			setTimeout(function () { document.removeEventListener('click', killClick, true); }, 0);
+		}
+	});
+
+	// --- Touch (iPad): two-finger pan only, so single-tap still places tiles ---
+	function midpoint(touches) {
+		return {
+			x: (touches[0].clientX + touches[1].clientX) / 2,
+			y: (touches[0].clientY + touches[1].clientY) / 2
+		};
+	}
+
+	document.addEventListener('touchstart', function (e) {
+		if (e.touches.length !== 2) return;
+		if (!e.target || !e.target.closest || !e.target.closest('#mapContainer')) return;
+		twoFingerActive = true;
+		var m = midpoint(e.touches);
+		lastX = m.x; lastY = m.y;
+		accumX = 0; accumY = 0;
+		e.preventDefault();
+	}, { passive: false });
+
+	document.addEventListener('touchmove', function (e) {
+		if (!twoFingerActive) return;
+		if (e.touches.length !== 2) { twoFingerActive = false; return; }
+		var m = midpoint(e.touches);
+		var dx = m.x - lastX, dy = m.y - lastY;
+		lastX = m.x; lastY = m.y;
+		consumeDelta(dx, dy);
+		e.preventDefault();
+	}, { passive: false });
+
+	document.addEventListener('touchend', function () { twoFingerActive = false; });
+	document.addEventListener('touchcancel', function () { twoFingerActive = false; });
+})();
 
 $(document).on(touchEvent,'.tokenTileContainer:not(.chosenTokenTileContainer):not(.inactive):not(.potentialNatureCube):not(.natureCubeClearTokens)',function(){
 	// Click on one of the four possible tile+token pairings to activate that container and show possible placemenets on the map
@@ -1760,6 +2180,8 @@ function undoTilePlacementFunction() {
 function updateNatureCubesNum(activateButton){
 	// first update the amount of nature cubes on the span which corresponds with number visible on the "Nature Cubes" button
 	$('.numNatureCubesInfo').html(natureCubesNum);
+	// Greys out the overlay icon when none are available.
+	$('.natureTokenDisplay').toggleClass('noTokens', natureCubesNum === 0);
 	// If there are no Nature Cubes, the button is deactivcated by default
 	$('#natureCubesModal .modal-card .modal-card-body #natureTokenAmount .numNatureCubes').html(natureCubesNum);
 	if(natureCubesNum == 0) {
@@ -1976,7 +2398,10 @@ function pickNewTilesTokens() {
 		duplicatesClearedThisTurn = false;
 		// Need to give enough time for the new tokens and tiles to be generated and to slide down
 		checkDuplicateTokens();
-		
+
+		// turn fully resolved — autosave for refresh-resume
+		saveGameState();
+
 	}, 1000)
 }
 
@@ -2637,6 +3062,10 @@ function generateMap() {
 	// the map is generated and all the exisiting information has been replaced
 	$('#gameLayer #mapContainer').html(mapHTML);
 
+	// Reparent the turns/nature counter onto the map so it can be styled as a top-right overlay,
+	// mirroring the zoom controls anchored to top-left. Persists across regenerations.
+	$('#mapContainer').append($('#turnsAndNatureTokenContainer'));
+
 	if($('.tokenTileContainer.potentialNatureCube').length) {
 		$('.nonNatureCubeButton').hide();
 		$('.natureCubeButton').show();
@@ -2811,7 +3240,8 @@ function endOfGameNotification() {
 	// remove the displayed tiles and tokens area (since we don't need them anymore)
 	updateNextTurn('nextTurn');
 	$('#lastTurnModal').addClass('is-active');
-
+	// game is over — clear the autosave so we don't auto-resume into a finished game
+	clearGameState();
 }
 
 function endOfGameSetup() {
@@ -2951,7 +3381,7 @@ function endOfGameSetup() {
 			</div>
 
 			<div id="bear-finalScoringContainer" class="largeWildlifeFinalScoringInfo finalScoringItem inactiveScoringItem">
-				<img src="img/scoring-goals/bear-large.jpg" alt="" />
+				<img src="img/scoring-goals/CD_Bear-A-full.png" alt="" />
 				
 				<div class="individualWildlifeScoringInputContainer">								
 					<img class="individualWildlifeScore-background" src="img/scoring/bearScore.jpg" alt="" />
@@ -2962,7 +3392,7 @@ function endOfGameSetup() {
 			</div>
 
 			<div id="elk-finalScoringContainer" class="largeWildlifeFinalScoringInfo finalScoringItem inactiveScoringItem">
-				<img src="img/scoring-goals/elk-large.jpg" alt="" />
+				<img src="img/scoring-goals/CD_Elk-A-full.png" alt="" />
 
 				<div class="individualWildlifeScoringInputContainer">								
 					<img class="individualWildlifeScore-background" src="img/scoring/elkScore.jpg" alt="" />
@@ -2973,7 +3403,7 @@ function endOfGameSetup() {
 			</div>
 
 			<div id="fox-finalScoringContainer" class="largeWildlifeFinalScoringInfo finalScoringItem inactiveScoringItem">
-				<img src="img/scoring-goals/fox-large.jpg" alt="" />
+				<img src="img/scoring-goals/CD_Fox-A-full.png" alt="" />
 				
 				<div class="individualWildlifeScoringInputContainer">								
 					<img class="individualWildlifeScore-background" src="img/scoring/foxScore.jpg" alt="" />
@@ -2984,7 +3414,7 @@ function endOfGameSetup() {
 			</div>
 
 			<div id="hawk-finalScoringContainer" class="largeWildlifeFinalScoringInfo finalScoringItem inactiveScoringItem">
-				<img src="img/scoring-goals/hawk-large.jpg" alt="" />
+				<img src="img/scoring-goals/CD_Hawk-A-full.png" alt="" />
 				
 				<div class="individualWildlifeScoringInputContainer">								
 					<img class="individualWildlifeScore-background" src="img/scoring/hawkScore.jpg" alt="" />
@@ -2995,7 +3425,7 @@ function endOfGameSetup() {
 			</div>
 
 			<div id="salmon-finalScoringContainer" class="largeWildlifeFinalScoringInfo finalScoringItem inactiveScoringItem">
-				<img src="img/scoring-goals/salmon-large.jpg" alt="" />
+				<img src="img/scoring-goals/CD_Salmon-A-full.png" alt="" />
 				
 				<div class="individualWildlifeScoringInputContainer">								
 					<img class="individualWildlifeScore-background" src="img/scoring/salmonScore.jpg" alt="" />
@@ -3014,8 +3444,6 @@ function endOfGameSetup() {
 		setupFinalScoring();
 
 		$('#scoringTable-FinalScoringModalTrigger').removeClass('activeScoringItemTrigger').addClass('inactiveScoringItemTrigger');
-		$('#scoringTable-FinalScoringModalTrigger').prepend('<img class="activeScoringFrame" src="img/scoringGoal-active.png" />');
-		$('#scoringTable-FinalScoringModalTrigger .activeScoringFrame').css('display', 'block');
 
 		$('#scoringTable-mobileFinalScoringModalTrigger').removeClass('mobileActiveScoringItemTrigger').addClass('mobileInactiveScoringItemTrigger');
 		$('#scoringTable-mobileFinalScoringModalTrigger').prepend('<img class="mobileActiveScoringFrame" src="img/mobileScoringGoal-active.png" />');
@@ -3059,16 +3487,6 @@ function debugShowTileIDs(){
 }
 
 
-$(document).on('mouseover','.finalScoringItemTrigger:not(.lockTrigger).activeScoringItemTrigger .goalScoringTransparentLayer',function(){
-	$('.hoverScoringFrame').remove();
-	$(this).after('<img class="hoverScoringFrame" src="img/scoringGoal-hover.png" />');
-	$('.hoverScoringFrame').css('display', 'block');
-});
-
-$(document).on('mouseout','.finalScoringItemTrigger:not(.lockTrigger).activeScoringItemTrigger .goalScoringTransparentLayer',function(){
-	$('.hoverScoringFrame').remove();
-});
-
 $(document).on(touchEvent,'.finalScoringItemTrigger:not(.lockTrigger).activeScoringItemTrigger .goalScoringTransparentLayer',function(){
 
 	$('.animated.pulse').removeClass('animated pulse');
@@ -3077,19 +3495,11 @@ $(document).on(touchEvent,'.finalScoringItemTrigger:not(.lockTrigger).activeScor
 
 	$('.finalScoringItemTrigger').addClass('lockTrigger');
 
-	$('.hoverScoringFrame').remove();
-	$('.activeScoringFrame').fadeOut('fast');
-
-	setTimeout(function(){
-		$('.activeScoringFrame').remove();
-		$('#' + parentID).prepend('<img class="activeScoringFrame" src="img/scoringGoal-active.png" />')
-	}, 200)
-
 	$('.inactiveScoringItemTrigger').removeClass('inactiveScoringItemTrigger').addClass('activeScoringItemTrigger');
 	$('.activeScoringItem').removeClass('activeScoringItem').addClass('inactiveScoringItem');
 
 	$('#' + parentID).addClass('inactiveScoringItemTrigger').removeClass('activeScoringItemTrigger')
-	
+
 
 	let thisID = parentID.split('-');
 
@@ -3102,7 +3512,6 @@ $(document).on(touchEvent,'.finalScoringItemTrigger:not(.lockTrigger).activeScor
 				$('.placedWildlifeToken[wildlife=' + thisID[0] + ']').addClass('animated pulse')
 			}
 		}
-		$('.activeScoringFrame').fadeIn('slow');
 	}, 400)
 
 });
@@ -3259,6 +3668,9 @@ function checkForBlanks() {
 function setupFinalScoring() {
 
 	$('#natureTokensScoringInput').html(natureCubesNum);
+
+	// Re-apply selected-deck art now that the dynamic per-wildlife scoring panels exist.
+	applySelectedDecksToGameUI();
 
 	$('#mapHiddenOverlay .mapTileContainer .placedWildlifeToken').each(function(){
 		let tokenWildlife = $(this).attr('wildlife');
@@ -3606,66 +4018,32 @@ let tokenScoring = {
 };
 
 function calculateBearTokenScoring() {
+	const deck = (typeof selectedDecks !== 'undefined' && selectedDecks.bear) || 'A';
+	const components = connectedComponentsFor('bear');
+	let total = 0;
 
-	let bearScoringValues = {
-		'1': 4,
-		'2': 11,
-		'3': 19,
-		'4': 27
+	if (deck === 'A') {
+		// Mating Pairs: count groups that are exactly 2 bears (no other bears adjacent — true by component definition)
+		const pairs = components.filter(c => c.length === 2).length;
+		const t = { 1: 4, 2: 11, 3: 19 };
+		if (pairs >= 4) total = 27;
+		else if (pairs > 0) total = t[pairs];
+	} else if (deck === 'B') {
+		// Mother and Cubs: 10 per group of exactly 3 bears
+		total = components.filter(c => c.length === 3).length * 10;
+	} else if (deck === 'C') {
+		// Families: per group of size 1/2/3 (2/5/8); +3 if all three sizes are present
+		const counts = { 1: 0, 2: 0, 3: 0 };
+		for (const c of components) if (counts[c.length] !== undefined) counts[c.length]++;
+		total = counts[1] * 2 + counts[2] * 5 + counts[3] * 8;
+		if (counts[1] && counts[2] && counts[3]) total += 3;
+	} else if (deck === 'D') {
+		// Big Groups: per group of size 2/3/4 (5/8/13); 1 and 5+ score 0
+		const v = { 2: 5, 3: 8, 4: 13 };
+		for (const c of components) total += v[c.length] || 0;
 	}
 
-	let confirmedBearPairs = 0;
-
-	let potentialTokenIDs = [];
-	let usedTokenIDs = [];
-
-	const tokenIDs = Object.keys(allPlacedTokens);
-			
-	for (const tokenID of tokenIDs) {
-
-		potentialTokenIDs = [];
-
-		if(allPlacedTokens[tokenID] == 'bear' && usedTokenIDs.indexOf(tokenID) == -1) {
-
-			let neighbourTiles = neighbourTileIDs(tokenID);
-
-			for (let i = 0; i < neighbourTiles.length; i++) {
-				if(allPlacedTokens.hasOwnProperty(neighbourTiles[i])) {
-					// The neighbouring tile exists and has a placed token on it!
-					// Continue with the specified scoring process for this wildlife'
-					if(allPlacedTokens[neighbourTiles[i]] == 'bear') {
-						potentialTokenIDs.push(neighbourTiles[i]);
-					}
-				}
-			}
-
-			if(potentialTokenIDs.length == 1) {
-				// Only one beighbouring bear means it only has the pair and could qualify for scoring!
-				// Need to now make sure there's no bears touching the matched neighbour tile before locking it in for scoring
-
-				let potentialBearPairNeighbourTiles = neighbourTileIDs(potentialTokenIDs[0]);
-				for (let i = 0; i < potentialBearPairNeighbourTiles.length; i++) {
-					if(allPlacedTokens.hasOwnProperty(potentialBearPairNeighbourTiles[i])) {
-						// The neighbouring tile exists and has a placed token on it!
-						// Continue with the specified scoring process for this wildlife'
-	
-						if(allPlacedTokens[potentialBearPairNeighbourTiles[i]] == 'bear') {
-							potentialTokenIDs.push(potentialBearPairNeighbourTiles[i]);
-						}
-					}
-				}
-				if(potentialTokenIDs.length == 2) {
-					if(confirmedBearPairs <= 4) confirmedBearPairs++;
-				}
-			}
-			usedTokenIDs.push(...potentialTokenIDs);
-		}
-	}
-
-	if(confirmedBearPairs != 0) {
-		tokenScoring.bear.totalScore = bearScoringValues[confirmedBearPairs];
-	}
-
+	tokenScoring.bear.totalScore = total;
 }
 
 let allElkTokens = [];
@@ -3687,6 +4065,14 @@ let elkScoringValues = {
 }
 
 function calculateElkTokenScoring() {
+	const deck = (typeof selectedDecks !== 'undefined' && selectedDecks.elk) || 'A';
+	if (deck === 'A') return calculateElkLinesScoring();
+	if (deck === 'B') return calculateElkFormationsScoring();
+	if (deck === 'C') return calculateElkHerdsScoring();
+	if (deck === 'D') return calculateElkRingsScoring();
+}
+
+function calculateElkLinesScoring() {
 
 	const tokenIDs = Object.keys(allPlacedTokens);
 	for (const tokenID of tokenIDs) {
@@ -3694,11 +4080,11 @@ function calculateElkTokenScoring() {
 			allElkTokens.push(tokenID);
 		}
 	}
-	
+
 
 	if(allElkTokens.length != 0) {
 		if(allElkTokens.length == 1) {
-			usedElkTokenIDs.push(allElkTokens[0]);			
+			usedElkTokenIDs.push(allElkTokens[0]);
 			confirmedElkLines.push(allElkTokens);
 		} else {
 			generateAllElkLines();
@@ -3710,12 +4096,140 @@ function calculateElkTokenScoring() {
 			return b.length - a.length;
 		});
 
-		for (let i = 0; i < confirmedElkLines.length; i++) {		
-			
+		for (let i = 0; i < confirmedElkLines.length; i++) {
+
 			let elkInLineNum = confirmedElkLines[i].length;
 			tokenScoring.elk.totalScore += elkScoringValues[elkInLineNum];
 		}
 	}
+}
+
+function calculateElkHerdsScoring() {
+	// Connected groups of elk; score by component size: 1=2, 2=4, 3=7, 4=10, 5=14, 6=18, 7=23, 8+=29
+	const t = { 1: 2, 2: 4, 3: 7, 4: 10, 5: 14, 6: 18, 7: 23 };
+	const components = connectedComponentsFor('elk');
+	let total = 0;
+	for (const c of components) total += c.length >= 8 ? 29 : (t[c.length] || 0);
+	tokenScoring.elk.totalScore = total;
+}
+
+function calculateElkFormationsScoring() {
+	// Exact-shape detection. Each elk counts in at most one shape. Greedy by descending value:
+	//   Diamond (4 elk = 2 triangles sharing an edge) = 13
+	//   Triangle (3 mutually adjacent elk)            = 9
+	//   Pair (2 adjacent elk)                         = 5
+	//   Singleton (1 elk left over)                   = 2
+	const allElk = Object.keys(allPlacedTokens).filter(function (id) { return allPlacedTokens[id] === 'elk'; });
+	const used = new Set();
+	let total = 0;
+
+	function adjElkOf(id) {
+		return searchNeighbourTilesForWildlife(id, 'elk').filter(function (n) { return !used.has(n); });
+	}
+
+	function findTriangles(pool) {
+		const poolSet = new Set(pool);
+		const seen = new Set();
+		const triangles = [];
+		for (const a of pool) {
+			const aN = searchNeighbourTilesForWildlife(a, 'elk').filter(function (n) { return poolSet.has(n); });
+			for (let i = 0; i < aN.length; i++) {
+				for (let j = i + 1; j < aN.length; j++) {
+					const b = aN[i], c = aN[j];
+					if (searchNeighbourTilesForWildlife(b, 'elk').indexOf(c) !== -1) {
+						const sorted = [a, b, c].sort();
+						const key = sorted.join('|');
+						if (!seen.has(key)) {
+							seen.add(key);
+							triangles.push(sorted);
+						}
+					}
+				}
+			}
+		}
+		return triangles;
+	}
+
+	function findDiamonds(pool) {
+		// A diamond = 4 elk = two triangles sharing exactly one edge (i.e., 2 elk in common).
+		const triangles = findTriangles(pool);
+		const seen = new Set();
+		const diamonds = [];
+		for (let i = 0; i < triangles.length; i++) {
+			for (let j = i + 1; j < triangles.length; j++) {
+				const t1 = triangles[i], t2 = triangles[j];
+				let shared = 0;
+				for (const x of t1) if (t2.indexOf(x) !== -1) shared++;
+				if (shared === 2) {
+					const union = [];
+					for (const x of t1) if (union.indexOf(x) === -1) union.push(x);
+					for (const x of t2) if (union.indexOf(x) === -1) union.push(x);
+					if (union.length === 4) {
+						const sorted = union.sort();
+						const key = sorted.join('|');
+						if (!seen.has(key)) {
+							seen.add(key);
+							diamonds.push(sorted);
+						}
+					}
+				}
+			}
+		}
+		return diamonds;
+	}
+
+	// 1) Diamonds
+	const diamonds = findDiamonds(allElk);
+	for (const d of diamonds) {
+		if (d.every(function (e) { return !used.has(e); })) {
+			d.forEach(function (e) { used.add(e); });
+			total += 13;
+		}
+	}
+
+	// 2) Triangles (in remaining pool)
+	const afterDiamonds = allElk.filter(function (e) { return !used.has(e); });
+	const triangles = findTriangles(afterDiamonds);
+	for (const t of triangles) {
+		if (t.every(function (e) { return !used.has(e); })) {
+			t.forEach(function (e) { used.add(e); });
+			total += 9;
+		}
+	}
+
+	// 3) Pairs (greedy)
+	for (const a of allElk) {
+		if (used.has(a)) continue;
+		const adj = adjElkOf(a);
+		if (adj.length > 0) {
+			used.add(a);
+			used.add(adj[0]);
+			total += 5;
+		}
+	}
+
+	// 4) Singletons
+	for (const a of allElk) {
+		if (!used.has(a)) {
+			used.add(a);
+			total += 2;
+		}
+	}
+
+	tokenScoring.elk.totalScore = total;
+}
+
+function calculateElkRingsScoring() {
+	// "Scores per group of ELK in circular formation" — each connected group of elk scores
+	// based on its size, capped at 6: 1=2, 2=5, 3=8, 4=12, 5=16, 6+=21. Each elk only counts
+	// in one group (groups are connected components, so this is automatic).
+	const t = { 1: 2, 2: 5, 3: 8, 4: 12, 5: 16 };
+	const components = connectedComponentsFor('elk');
+	let total = 0;
+	for (const c of components) {
+		total += c.length >= 6 ? 21 : (t[c.length] || 0);
+	}
+	tokenScoring.elk.totalScore = total;
 }
 
 let sharedElkTokenIDs = {};
@@ -4038,89 +4552,170 @@ function getOppositeDirection(thisDirection) {
 }
 
 function calculateFoxTokenScoring() {
-	let foxScoringValues = {
-		'1': 1,
-		'2': 2,
-		'3': 3,
-		'4': 4,
-		'5': 5
+	const deck = (typeof selectedDecks !== 'undefined' && selectedDecks.fox) || 'A';
+	const foxIDs = Object.keys(allPlacedTokens).filter(id => allPlacedTokens[id] === 'fox');
+	let total = 0;
+
+	function uniqueAdjacentTypes(foxID, includeFox) {
+		const types = new Set();
+		for (const n of neighbourTileIDs(foxID)) {
+			if (allPlacedTokens.hasOwnProperty(n)) {
+				const w = allPlacedTokens[n];
+				if (!includeFox && w === 'fox') continue;
+				types.add(w);
+			}
+		}
+		return types;
 	}
-	
-	const tokenIDs = Object.keys(allPlacedTokens);
-			
-	for (const tokenID of tokenIDs) {
 
-		if(allPlacedTokens[tokenID] == 'fox') {
-			
-			let neighbourTiles = neighbourTileIDs(tokenID);
+	function pairCount(typesArr) {
+		// number of unique unordered pairs from a set of distinct types
+		const n = typesArr.length;
+		return n < 2 ? 0 : (n * (n - 1)) / 2;
+	}
 
-			let allNeighbouringWildlife = [];
-
-			for (let i = 0; i < neighbourTiles.length; i++) {
-
-				if(allPlacedTokens.hasOwnProperty(neighbourTiles[i])) {
-					allNeighbouringWildlife.push(allPlacedTokens[neighbourTiles[i]]);
+	if (deck === 'A') {
+		// Nearby Animals: per fox, count unique adjacent types (foxes count). 1..5 → 1..5
+		for (const id of foxIDs) {
+			const n = uniqueAdjacentTypes(id, true).size;
+			total += Math.min(n, 5);
+		}
+	} else if (deck === 'B') {
+		// Nearby Pairs: per fox, count unique non-fox animal TYPES that have >=2 adjacent
+		// tokens around the fox (i.e., a "pair" = 2 same-type tokens). 1=3, 2=5, 3+=7
+		const t = { 1: 3, 2: 5 };
+		for (const id of foxIDs) {
+			const counts = {};
+			for (const n of neighbourTileIDs(id)) {
+				if (allPlacedTokens.hasOwnProperty(n)) {
+					const w = allPlacedTokens[n];
+					if (w !== 'fox') counts[w] = (counts[w] || 0) + 1;
 				}
 			}
-
-			if(allNeighbouringWildlife.length != 0) {
-				for (let j = 0; j < allNeighbouringWildlife.length; j++) {
+			let pairs = 0;
+			for (const k in counts) if (counts[k] >= 2) pairs++;
+			if (pairs >= 3) total += 7;
+			else total += t[pairs] || 0;
+		}
+	} else if (deck === 'C') {
+		// Nearby Related: per fox, max count of any single non-fox type around it. 1..6 → 1..6
+		for (const id of foxIDs) {
+			const counts = {};
+			for (const n of neighbourTileIDs(id)) {
+				if (allPlacedTokens.hasOwnProperty(n)) {
+					const w = allPlacedTokens[n];
+					if (w !== 'fox') counts[w] = (counts[w] || 0) + 1;
 				}
-	
-				let uniqueWildlife = allNeighbouringWildlife.filter(onlyUnique);
-	
-				let numUniqueWildlife = uniqueWildlife.length;
-				
-				tokenScoring.fox.totalScore += foxScoringValues[numUniqueWildlife];
 			}
-
+			let max = 0;
+			for (const k in counts) if (counts[k] > max) max = counts[k];
+			total += Math.min(max, 6);
+		}
+	} else if (deck === 'D') {
+		// Dynamic Duos: per pair of adjacent foxes, count unique non-fox TYPES that have
+		// >=2 tokens adjacent to either fox in the pair (combined neighbourhood).
+		// 1=5, 2=7, 3=9, 4+=11. Each adjacent fox pair scored independently.
+		const t = { 1: 5, 2: 7, 3: 9 };
+		const seen = new Set();
+		for (const id of foxIDs) {
+			const adjFoxes = searchNeighbourTilesForWildlife(id, 'fox');
+			for (const other of adjFoxes) {
+				const key = [id, other].sort().join('|');
+				if (seen.has(key)) continue;
+				seen.add(key);
+				const combined = new Set([...neighbourTileIDs(id), ...neighbourTileIDs(other)]);
+				combined.delete(id); combined.delete(other);
+				const counts = {};
+				for (const n of combined) {
+					if (allPlacedTokens.hasOwnProperty(n)) {
+						const w = allPlacedTokens[n];
+						if (w !== 'fox') counts[w] = (counts[w] || 0) + 1;
+					}
+				}
+				let pairs = 0;
+				for (const k in counts) if (counts[k] >= 2) pairs++;
+				if (pairs >= 4) total += 11;
+				else total += t[pairs] || 0;
+			}
 		}
 	}
+
+	tokenScoring.fox.totalScore = total;
 }
 
 function calculateHawkTokenScoring() {
-	let hawkScoringValues = {
-		'0': 0,
-		'1': 2,
-		'2': 5,
-		'3': 8,
-		'4': 11,
-		'5': 14,
-		'6': 18,
-		'7': 22,
-		'8': 26
-	}
-	
-	const tokenIDs = Object.keys(allPlacedTokens);
+	const deck = (typeof selectedDecks !== 'undefined' && selectedDecks.hawk) || 'A';
+	const hawkIDs = Object.keys(allPlacedTokens).filter(id => allPlacedTokens[id] === 'hawk');
 
-	let numIsolatedHawks = 0;
-			
-	for (const tokenID of tokenIDs) {
-
-		if(allPlacedTokens[tokenID] == 'hawk') {
-			
-			let neighbourTiles = neighbourTileIDs(tokenID);
-
-			let neighbouringHawks = false;
-
-			for (let i = 0; i < neighbourTiles.length; i++) {
-				if(allPlacedTokens.hasOwnProperty(neighbourTiles[i])) {
-					if(allPlacedTokens[neighbourTiles[i]] == 'hawk') {
-						neighbouringHawks = true;
-					}
-				}
-			}
-			if(!neighbouringHawks) {
-				numIsolatedHawks++;
-			}
-			
+	if (deck === 'A') {
+		// Solitary: each hawk with no adjacent hawk. 1..8+ → 2/5/8/11/14/18/22/26
+		const t = { 0: 0, 1: 2, 2: 5, 3: 8, 4: 11, 5: 14, 6: 18, 7: 22, 8: 26 };
+		let isolated = 0;
+		for (const id of hawkIDs) {
+			if (searchNeighbourTilesForWildlife(id, 'hawk').length === 0) isolated++;
 		}
+		if (isolated > 8) isolated = 8;
+		tokenScoring.hawk.totalScore = t[isolated];
+	} else if (deck === 'B') {
+		// Connected: hawk has no adjacent hawk AND has direct line of sight to another hawk
+		// (LOS = blocked by any animal token). 2..8+ → 5/9/12/16/20/24/28; <2 scores 0
+		const t = { 2: 5, 3: 9, 4: 12, 5: 16, 6: 20, 7: 24, 8: 28 };
+		let connected = 0;
+		for (const id of hawkIDs) {
+			if (searchNeighbourTilesForWildlife(id, 'hawk').length > 0) continue;
+			let hasLOS = false;
+			for (const dir of directions) {
+				if (hawkLineOfSightFrom(id, dir)) { hasLOS = true; break; }
+			}
+			if (hasLOS) connected++;
+		}
+		if (connected > 8) connected = 8;
+		tokenScoring.hawk.totalScore = connected < 2 ? 0 : t[connected];
+	} else if (deck === 'C') {
+		// Network: 3 pts per LOS between two non-adjacent hawks. Each pair counted once.
+		const seen = new Set();
+		let los = 0;
+		for (const id of hawkIDs) {
+			const adj = searchNeighbourTilesForWildlife(id, 'hawk');
+			for (const dir of directions) {
+				const target = hawkLineOfSightFrom(id, dir);
+				if (!target) continue;
+				if (adj.indexOf(target) !== -1) continue; // adjacent, doesn't count
+				const key = [id, target].sort().join('|');
+				if (seen.has(key)) continue;
+				seen.add(key);
+				los++;
+			}
+		}
+		tokenScoring.hawk.totalScore = los * 3;
+	} else if (deck === 'D') {
+		// Territorial: pair hawks on a hex line (animals between are allowed and counted),
+		// score by unique animal types between. Each hawk in at most one pair (greedy by score).
+		// Adjacent hawks have 0 between → 0 points; we skip them so they can free others.
+		const losPairs = [];
+		const seenKey = new Set();
+		for (const id of hawkIDs) {
+			for (const dir of directions) {
+				const result = hawkLineWalk(id, dir);
+				if (!result) continue;
+				const key = [id, result.target].sort().join('|');
+				if (seenKey.has(key)) continue;
+				seenKey.add(key);
+				const types = new Set(result.between).size;
+				losPairs.push({ a: id, b: result.target, types: types });
+			}
+		}
+		losPairs.sort((p, q) => q.types - p.types);
+		const used = new Set();
+		let total = 0;
+		for (const p of losPairs) {
+			if (p.types === 0) continue;
+			if (used.has(p.a) || used.has(p.b)) continue;
+			used.add(p.a); used.add(p.b);
+			total += p.types >= 3 ? 9 : (p.types === 2 ? 7 : 4);
+		}
+		tokenScoring.hawk.totalScore = total;
 	}
-
-	if(numIsolatedHawks > 8) numIsolatedHawks = 8;
-
-	tokenScoring.hawk.totalScore = hawkScoringValues[numIsolatedHawks];
-
 }
 
 let usedSalmonTokenIDs = [];
@@ -4128,93 +4723,50 @@ let potentialSalmonTokenIDs = [];
 let confirmedSalmonRuns = [];
 	
 function calculateSalmonTokenScoring() {
+	const deck = (typeof selectedDecks !== 'undefined' && selectedDecks.salmon) || 'A';
+	const runs = computeSalmonRuns();
+	let total = 0;
 
-	let salmonScoringValues = {
-		'1': 2,
-		'2': 4,
-		'3': 7,
-		'4': 11,
-		'5': 15,
-		'6': 20,
-		'7': 26
-	}
-
-	const tokenIDs = Object.keys(allPlacedTokens);
-
-	let allSalmonTileIDs = [];
-			
-	for (const tokenID of tokenIDs) {
-		
-		if(allPlacedTokens[tokenID] == 'salmon') {
-			allSalmonTileIDs.push(tokenID);
+	if (deck === 'A') {
+		// Long Run: 1..7+ → 2/5/8/12/16/20/25
+		const t = { 1: 2, 2: 5, 3: 8, 4: 12, 5: 16, 6: 20 };
+		for (const r of runs) {
+			const n = r.length;
+			total += n >= 7 ? 25 : (t[n] || 0);
 		}
-	}
-
-	let validSalmonTiles = []
-
-	for (let i = 0; i < allSalmonTileIDs.length; i++) {
-		let neighbouringSalmon = searchNeighbourTilesForWildlife(allSalmonTileIDs[i], 'salmon');
-		if(neighbouringSalmon.length <= 2) {
-			validSalmonTiles.push(allSalmonTileIDs[i]);
-		} else {
-			usedSalmonTokenIDs.push(allSalmonTileIDs[i]);	
+	} else if (deck === 'B') {
+		// Short Run: 1..5+ → 2/4/9/11/17
+		const t = { 1: 2, 2: 4, 3: 9, 4: 11 };
+		for (const r of runs) {
+			const n = r.length;
+			total += n >= 5 ? 17 : (t[n] || 0);
 		}
-	}
-
-	for (let j = 0; j < validSalmonTiles.length; j++) {
-
-		potentialSalmonTokenIDs = [];
-
-		if(usedSalmonTokenIDs.indexOf(validSalmonTiles[j]) == -1) {
-
-			let potentialNeighbourSalmon = searchNeighbourTilesForWildlife(validSalmonTiles[j], 'salmon');
-			let confirmedNeighbourSalmon = [];
-			
-			for (let k = 0; k < potentialNeighbourSalmon.length; k++) {
-				if(usedSalmonTokenIDs.indexOf(potentialNeighbourSalmon[k]) == -1) {
-					confirmedNeighbourSalmon.push(potentialNeighbourSalmon[k]);
+	} else if (deck === 'C') {
+		// Families: only runs of 3/4/5+ score (10/12/15); 1 and 2 don't score
+		const t = { 3: 10, 4: 12 };
+		for (const r of runs) {
+			const n = r.length;
+			if (n < 3) continue;
+			total += n >= 5 ? 15 : (t[n] || 0);
+		}
+	} else if (deck === 'D') {
+		// Surrounded: for runs of size >=3, 1pt per salmon + 1pt per unique adjacent animal type
+		// (excluding salmon members of the same run)
+		for (const r of runs) {
+			if (r.length < 3) continue;
+			const runSet = new Set(r);
+			const adjTypes = new Set();
+			for (const id of r) {
+				for (const n of neighbourTileIDs(id)) {
+					if (runSet.has(n)) continue;
+					if (allPlacedTokens.hasOwnProperty(n)) adjTypes.add(allPlacedTokens[n]);
 				}
 			}
-	
-			if(confirmedNeighbourSalmon.length == 2) {
-				let tilesToCheck = [validSalmonTiles[j]];
-				tilesToCheck.push(...confirmedNeighbourSalmon);
-	
-				let firstNeighbourTiles = neighbourTileIDs(confirmedNeighbourSalmon[0]);
-				let secondNeighbourTiles = neighbourTileIDs(confirmedNeighbourSalmon[1]);
-	
-				if(firstNeighbourTiles.indexOf(confirmedNeighbourSalmon[1]) === -1 && secondNeighbourTiles.indexOf(confirmedNeighbourSalmon[0]) === -1) {
-					// perform a run forwards and backwards!!
-					let forwardsAndBackwardsSalmonRunIDs = forwardsAndBackwardsSalmonRun(validSalmonTiles[j], confirmedNeighbourSalmon);
-	
-					potentialSalmonTokenIDs.push(...forwardsAndBackwardsSalmonRunIDs);
-						
-				} else {
-					// since all tokens with 3 or more neighbours have been removed - if this criteria of the loop is met it HAS to be a valid triangle formation
-					potentialSalmonTokenIDs.push(...tilesToCheck);
-					usedSalmonTokenIDs.push(...tilesToCheck);	
-				}
-				
-			} else if(confirmedNeighbourSalmon.length < 2) {
-				potentialSalmonTokenIDs.push(validSalmonTiles[j]);
-				let salmonRunIDs = salmonTokensInRun(validSalmonTiles[j], 'salmon');
-				potentialSalmonTokenIDs.push(...salmonRunIDs);
-	
-			}
-			confirmedSalmonRuns.push(potentialSalmonTokenIDs);
+			total += r.length + adjTypes.size;
 		}
 	}
 
-	confirmedSalmonRuns.sort(function (a, b) {
-		return b.length - a.length;
-	});
-
-	for (let i = 0; i < confirmedSalmonRuns.length; i++) {
-		let uniqueSalmonIDs = confirmedSalmonRuns[i].filter(onlyUnique);
-		let salmonInRunNum = uniqueSalmonIDs.length;
-		if(salmonInRunNum > 7) salmonInRunNum = 7;
-		tokenScoring.salmon.totalScore += salmonScoringValues[salmonInRunNum];
-	}
+	tokenScoring.salmon.totalScore = total;
 }
 
 let currentSalmonRunIDs = [];
@@ -4292,6 +4844,111 @@ function salmonTokensInRun(startID, thisWildlife) {
 	}
 
 	return currentSalmonRunIDs;
+}
+
+// ---- Scoring helpers (deck-aware) ----
+
+// Returns connected components (arrays of token IDs) for tokens of the given wildlife,
+// adjacency = direct hex neighbours.
+function connectedComponentsFor(wildlife) {
+	const all = Object.keys(allPlacedTokens).filter(function (id) { return allPlacedTokens[id] === wildlife; });
+	const visited = new Set();
+	const components = [];
+	for (let s = 0; s < all.length; s++) {
+		const start = all[s];
+		if (visited.has(start)) continue;
+		const queue = [start];
+		const comp = [];
+		visited.add(start);
+		while (queue.length) {
+			const id = queue.shift();
+			comp.push(id);
+			const ns = searchNeighbourTilesForWildlife(id, wildlife);
+			for (let i = 0; i < ns.length; i++) {
+				if (!visited.has(ns[i])) {
+					visited.add(ns[i]);
+					queue.push(ns[i]);
+				}
+			}
+		}
+		components.push(comp);
+	}
+	return components;
+}
+
+// Returns the neighbour tile ID of `id` in hex direction `dir` (NE/E/SE/SW/W/NW),
+// regardless of whether anything is placed there.
+function neighbourTileInDirection(id, dir) {
+	const parts = id.split('-');
+	const row = parseInt(parts[1]);
+	const col = parseInt(parts[3]);
+	let parity = row % 2;
+	if (parity !== 0) parity = 1;
+	const idx = directions.indexOf(dir);
+	if (idx === -1) return null;
+	const m = linkedTileSides[idx].rowColMapping[parity];
+	return 'row-' + (row + m.rowDif) + '-column-' + (col + m.colDif);
+}
+
+// Strict line of sight from a hawk: walks in `dir`, returns the next hawk's ID if visible.
+// LOS is blocked by ANY placed animal token; passes through empty hexes/empty tiles.
+function hawkLineOfSightFrom(id, dir) {
+	let curr = id;
+	for (let step = 0; step < 50; step++) {
+		curr = neighbourTileInDirection(curr, dir);
+		if (!curr) return null;
+		if (allPlacedTokens.hasOwnProperty(curr)) {
+			return allPlacedTokens[curr] === 'hawk' ? curr : null;
+		}
+	}
+	return null;
+}
+
+// Walk from a hawk in direction `dir`. Records placed-token wildlife between, then returns
+// the target hawk and the list of intermediate animal types when one is found.
+// Used for Hawk Deck D where animals BETWEEN the hawks count and don't block the pairing.
+function hawkLineWalk(id, dir) {
+	let curr = id;
+	const between = [];
+	for (let step = 0; step < 50; step++) {
+		curr = neighbourTileInDirection(curr, dir);
+		if (!curr) return null;
+		if (allPlacedTokens.hasOwnProperty(curr)) {
+			if (allPlacedTokens[curr] === 'hawk') return { target: curr, between: between };
+			between.push(allPlacedTokens[curr]);
+		}
+	}
+	return null;
+}
+
+// Salmon runs. Per the rules, a salmon with 3+ adjacent salmon doesn't form runs at all.
+// Each remaining (≤2-neighbour) salmon belongs to one run; this function returns the runs.
+function computeSalmonRuns() {
+	const all = Object.keys(allPlacedTokens).filter(function (id) { return allPlacedTokens[id] === 'salmon'; });
+	const valid = all.filter(function (id) { return searchNeighbourTilesForWildlife(id, 'salmon').length <= 2; });
+	const validSet = new Set(valid);
+	const visited = new Set();
+	const runs = [];
+	for (let s = 0; s < valid.length; s++) {
+		const start = valid[s];
+		if (visited.has(start)) continue;
+		const queue = [start];
+		const run = [];
+		visited.add(start);
+		while (queue.length) {
+			const id = queue.shift();
+			run.push(id);
+			const ns = searchNeighbourTilesForWildlife(id, 'salmon');
+			for (let i = 0; i < ns.length; i++) {
+				if (validSet.has(ns[i]) && !visited.has(ns[i])) {
+					visited.add(ns[i]);
+					queue.push(ns[i]);
+				}
+			}
+		}
+		runs.push(run);
+	}
+	return runs;
 }
 
 function searchNeighbourTilesForWildlife(currentID, thisWildlife) {

@@ -1,20 +1,10 @@
 <!DOCTYPE html>
 <html>
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
 <head>
 
-	<!-- Google Tag Manager -->
-	<script>(function (w, d, s, l, i) {
-			w[l] = w[l] || []; w[l].push({
-				'gtm.start':
-					new Date().getTime(), event: 'gtm.js'
-			}); var f = d.getElementsByTagName(s)[0],
-				j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''; j.async = true; j.src =
-					'https://www.googletagmanager.com/gtm.js?id=' + i + dl; f.parentNode.insertBefore(j, f);
-		})(window, document, 'script', 'dataLayer', 'GTM-WJSFCW5');</script>
-	<!-- End Google Tag Manager -->
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
 
 	<title>Cascadia</title>
 
@@ -32,24 +22,9 @@
 	<meta name="msapplication-TileColor" content="#da532c">
 	<meta name="theme-color" content="#ffffff">
 
-
-	<!-- Global site tag (gtag.js) - Google Analytics -->
-	<script async src="https://www.googletagmanager.com/gtag/js?id=UA-177957524-1"></script>
-	<script>
-		window.dataLayer = window.dataLayer || [];
-		function gtag() { dataLayer.push(arguments); }
-		gtag('js', new Date());
-
-		gtag('config', 'UA-177957524-1');
-	</script>
-
 </head>
 
 <body>
-
-	<!-- Google Tag Manager (noscript) -->
-	<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WJSFCW5" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-	<!-- End Google Tag Manager (noscript) -->
 
 	<div id="container">
 
@@ -71,30 +46,69 @@
 
 			<div id="homepageButtonContainer" class="buttons">
 				<button id="frontPageGameInstructionsButton" class="button is-info" title="Instructions">Instructions</button>
+				<button id="reshuffleDecks" class="button is-warning" title="Re-shuffle the randomly chosen scoring decks">Re-shuffle Deck</button>
 				<button id="startGame" class="button is-success startCommenceButton" title="Start Game">Start Game</button>
 			</div>
 
-			<div id="goalTilesContainer">
+			<div id="selectedDecksContainer">
 
-				<p class="has-text-centered title is-5">Wildlife Scoring Objectives (Click to enlarge)</p>
+				<p class="has-text-centered title is-5">Your Wildlife Scoring Cards</p>
+				<p class="has-text-centered is-italic selectedDecksHelp">A scoring deck (A, B, C or D) has been randomly chosen for each animal. Click "Re-shuffle Deck" to draw a new combination, then "Start Game" to lock it in.</p>
 
-				<ul id="goalList">
-					<li>
-						<img id="bear-showWildlifeScoringModal" class="goalScoring" src="img/scoring-goals/bear-small.jpg" alt="Bear Goal Thumbnail" />
+				<ul id="selectedDecksList">
+					<li data-wildlife="bear">
+						<div class="selectedDeckCard">
+							<div class="selectedDeckHeader">
+								<img class="selectedDeckToken" src="img/tokens/bear.png" alt="Bear Token" />
+								<span class="selectedDeckLetter">A</span>
+							</div>
+							<img class="selectedDeckImg" src="img/scoring-goals/CD_Bear-A-full.png" alt="Selected Bear scoring card" />
+							<p class="selectedDeckName">Mating Pairs</p>
+						</div>
 					</li>
-					<li>
-						<img id="elk-showWildlifeScoringModal" class="goalScoring" src="img/scoring-goals/elk-small.jpg" alt="Elk Goal Thumbnail" />
+					<li data-wildlife="elk">
+						<div class="selectedDeckCard">
+							<div class="selectedDeckHeader">
+								<img class="selectedDeckToken" src="img/tokens/elk.png" alt="Elk Token" />
+								<span class="selectedDeckLetter">A</span>
+							</div>
+							<img class="selectedDeckImg" src="img/scoring-goals/CD_Elk-A-full.png" alt="Selected Elk scoring card" />
+							<p class="selectedDeckName">Lines</p>
+						</div>
 					</li>
-					<li>
-						<img id="fox-showWildlifeScoringModal" class="goalScoring" src="img/scoring-goals/fox-small.jpg" alt="Fox Goal Thumbnail" />
+					<li data-wildlife="fox">
+						<div class="selectedDeckCard">
+							<div class="selectedDeckHeader">
+								<img class="selectedDeckToken" src="img/tokens/fox.png" alt="Fox Token" />
+								<span class="selectedDeckLetter">A</span>
+							</div>
+							<img class="selectedDeckImg" src="img/scoring-goals/CD_Fox-A-full.png" alt="Selected Fox scoring card" />
+							<p class="selectedDeckName">Nearby Animals</p>
+						</div>
 					</li>
-					<li>
-						<img id="hawk-showWildlifeScoringModal" class="goalScoring" src="img/scoring-goals/hawk-small.jpg" alt="Hawk Goal Thumbnail" />
+					<li data-wildlife="hawk">
+						<div class="selectedDeckCard">
+							<div class="selectedDeckHeader">
+								<img class="selectedDeckToken" src="img/tokens/hawk.png" alt="Hawk Token" />
+								<span class="selectedDeckLetter">A</span>
+							</div>
+							<img class="selectedDeckImg" src="img/scoring-goals/CD_Hawk-A-full.png" alt="Selected Hawk scoring card" />
+							<p class="selectedDeckName">Solitary</p>
+						</div>
 					</li>
-					<li>
-						<img id="salmon-showWildlifeScoringModal" class="goalScoring" src="img/scoring-goals/salmon-small.jpg" alt="Salmon Goal Thumbnail" />
+					<li data-wildlife="salmon">
+						<div class="selectedDeckCard">
+							<div class="selectedDeckHeader">
+								<img class="selectedDeckToken" src="img/tokens/salmon.png" alt="Salmon Token" />
+								<span class="selectedDeckLetter">A</span>
+							</div>
+							<img class="selectedDeckImg" src="img/scoring-goals/CD_Salmon-A-full.png" alt="Selected Salmon scoring card" />
+							<p class="selectedDeckName">Long Run</p>
+						</div>
 					</li>
 				</ul>
+
+				<p class="has-text-centered selectedDecksFooter"><a href="scoring.html" target="_blank">View all scoring decks (A–D)</a></p>
 
 			</div>
 
@@ -112,27 +126,27 @@
 					<div id="bear-FinalScoringModalTrigger" class="goalScoringThumbnailContainer finalScoringItemTrigger activeScoringItemTrigger">
 						<img class="goalScoringTransparentLayer" src="img/scoringGoal-transparentLayer.png" alt="Transparent Layer Image" />
 						<img class="goalScoringToken" src="img/tokens/bear.png" alt="Bear Token" />
-						<img class="goalScoringThumbnail" src="img/scoring-goals/bear-thumbnail-desktop.jpg" alt="Bear Thumbnail" />
+						<img class="goalScoringThumbnail" src="img/scoring-goals/CD_Bear-A-mini.png" alt="Bear Thumbnail" />
 					</div>
 					<div id="elk-FinalScoringModalTrigger" class="goalScoringThumbnailContainer finalScoringItemTrigger activeScoringItemTrigger">
 						<img class="goalScoringTransparentLayer" src="img/scoringGoal-transparentLayer.png" alt="Transparent Layer Image" />
 						<img class="goalScoringToken" src="img/tokens/elk.png" alt="Elk Token" />
-						<img class="goalScoringThumbnail" src="img/scoring-goals/elk-thumbnail-desktop.jpg" alt="Elk Thumbnail" />
+						<img class="goalScoringThumbnail" src="img/scoring-goals/CD_Elk-A-mini.png" alt="Elk Thumbnail" />
 					</div>
 					<div id="fox-FinalScoringModalTrigger" class="goalScoringThumbnailContainer finalScoringItemTrigger activeScoringItemTrigger">
 						<img class="goalScoringTransparentLayer" src="img/scoringGoal-transparentLayer.png" alt="Transparent Layer Image" />
 						<img class="goalScoringToken" src="img/tokens/fox.png" alt="Fox Token" />
-						<img class="goalScoringThumbnail" src="img/scoring-goals/fox-thumbnail-desktop.jpg" alt="Fox Thumbnail" />
+						<img class="goalScoringThumbnail" src="img/scoring-goals/CD_Fox-A-mini.png" alt="Fox Thumbnail" />
 					</div>
 					<div id="hawk-FinalScoringModalTrigger" class="goalScoringThumbnailContainer finalScoringItemTrigger activeScoringItemTrigger">
 						<img class="goalScoringTransparentLayer" src="img/scoringGoal-transparentLayer.png" alt="Transparent Layer Image" />
 						<img class="goalScoringToken" src="img/tokens/hawk.png" alt="Hawk Token" />
-						<img class="goalScoringThumbnail" src="img/scoring-goals/hawk-thumbnail-desktop.jpg" alt="Hawk Thumbnail" />
+						<img class="goalScoringThumbnail" src="img/scoring-goals/CD_Hawk-A-mini.png" alt="Hawk Thumbnail" />
 					</div>
 					<div id="salmon-FinalScoringModalTrigger" class="goalScoringThumbnailContainer finalScoringItemTrigger activeScoringItemTrigger">
 						<img class="goalScoringTransparentLayer" src="img/scoringGoal-transparentLayer.png" alt="Transparent Layer Image" />
 						<img class="goalScoringToken" src="img/tokens/salmon.png" alt="Salmon Token" />
-						<img class="goalScoringThumbnail" src="img/scoring-goals/salmon-thumbnail-desktop.jpg" alt="Salmon Thumbnail" />
+						<img class="goalScoringThumbnail" src="img/scoring-goals/CD_Salmon-A-mini.png" alt="Salmon Thumbnail" />
 					</div>
 				</div>
 
@@ -143,23 +157,23 @@
 					</div>
 					<div id="bear-mobileFinalScoringModalTrigger" class="mobileGoalScoringThumbnailContainer mobileFinalScoringItemTrigger mobileActiveScoringItemTrigger">
 						<img class="mobileGoalScoringTransparentLayer" src="img/mobileScoringGoal-transparentLayer.png" alt="Transparent Layer Image" />
-						<img class="mobileGoalScoringThumbnail" src="img/scoring-goals/bear-mobile-end-scoring.jpg" alt="Bear Mobile Scoring Thumbnail" />
+						<img class="mobileGoalScoringThumbnail" src="img/scoring-goals/CD_Bear-A-mini.png" alt="Bear Mobile Scoring Thumbnail" />
 					</div>
 					<div id="elk-mobileFinalScoringModalTrigger" class="mobileGoalScoringThumbnailContainer mobileFinalScoringItemTrigger mobileActiveScoringItemTrigger">
 						<img class="mobileGoalScoringTransparentLayer" src="img/mobileScoringGoal-transparentLayer.png" alt="Transparent Layer Image" />
-						<img class="mobileGoalScoringThumbnail" src="img/scoring-goals/elk-mobile-end-scoring.jpg" alt="Elk Mobile Scoring Thumbnail" />
+						<img class="mobileGoalScoringThumbnail" src="img/scoring-goals/CD_Elk-A-mini.png" alt="Elk Mobile Scoring Thumbnail" />
 					</div>
 					<div id="fox-mobileFinalScoringModalTrigger" class="mobileGoalScoringThumbnailContainer mobileFinalScoringItemTrigger mobileActiveScoringItemTrigger">
 						<img class="mobileGoalScoringTransparentLayer" src="img/mobileScoringGoal-transparentLayer.png" alt="Transparent Layer Image" />
-						<img class="mobileGoalScoringThumbnail" src="img/scoring-goals/fox-mobile-end-scoring.jpg" alt="Fox Mobile Scoring Thumbnail" />
+						<img class="mobileGoalScoringThumbnail" src="img/scoring-goals/CD_Fox-A-mini.png" alt="Fox Mobile Scoring Thumbnail" />
 					</div>
 					<div id="hawk-mobileFinalScoringModalTrigger" class="mobileGoalScoringThumbnailContainer mobileFinalScoringItemTrigger mobileActiveScoringItemTrigger">
 						<img class="mobileGoalScoringTransparentLayer" src="img/mobileScoringGoal-transparentLayer.png" alt="Transparent Layer Image" />
-						<img class="mobileGoalScoringThumbnail" src="img/scoring-goals/hawk-mobile-end-scoring.jpg" alt="Hawk Mobile Scoring Thumbnail" />
+						<img class="mobileGoalScoringThumbnail" src="img/scoring-goals/CD_Hawk-A-mini.png" alt="Hawk Mobile Scoring Thumbnail" />
 					</div>
 					<div id="salmon-mobileFinalScoringModalTrigger" class="mobileGoalScoringThumbnailContainer mobileFinalScoringItemTrigger mobileActiveScoringItemTrigger">
 						<img class="mobileGoalScoringTransparentLayer" src="img/mobileScoringGoal-transparentLayer.png" alt="Transparent Layer Image" />
-						<img class="mobileGoalScoringThumbnail" src="img/scoring-goals/salmon-mobile-end-scoring.jpg" alt="Salmon Mobile Scoring Thumbnail" />
+						<img class="mobileGoalScoringThumbnail" src="img/scoring-goals/CD_Salmon-A-mini.png" alt="Salmon Mobile Scoring Thumbnail" />
 					</div>
 				</div>
 
@@ -168,14 +182,17 @@
 			<div id="allButtonsContainer" class="hideWhenShowingGoalsMobile hideWhenShowingGoalsTablet">
 				<div id="mobileButtonsContainer">
 					<button id="showWildlifeGoals" class="button is-warning" title="Show Goals Button">Show Goals</button>
-					<button id="mobileGameInstructionsButton" class="button is-info" title="Instructions Button">Instructions</button>
+					<button id="viewAllCardsMobile" class="button is-info viewAllCardsInPlayBtn" title="View all scoring cards in play">View all cards</button>
 					<button class="button is-success useNatureCube" disabled title="Nature Tokens Button">Nature Tokens</button>
 					<div class="clearDiv"></div>
 				</div>
 
 				<div id="turnsAndNatureTokenContainer">
-					<p>Turns Left: <span class="turnsLeftFigure"></span></p>
-					<p>Nature Tokens: <span class="numNatureCubesInfo"></span></p>
+					<p class="turnsLeftDisplay">Turns: <span class="turnsLeftFigure"></span></p>
+					<p class="natureTokenDisplay noTokens">
+						<img class="natureTokenIcon" src="img/tokens/nature-token.png" alt="Nature Tokens" />
+						<span class="numNatureCubesInfo">0</span>
+					</p>
 				</div>
 
 				<div class="clearDiv"></div>
@@ -186,7 +203,8 @@
 						Placement</button>
 					<button id="replaceDuplicateTokens" class="button is-danger" disabled title="Replace Duplicate Tokens Button">Replace Duplicate Tokens</button>
 					<button class="button is-success useNatureCube" disabled title="Use Nature Tokens Button">Use Nature Tokens</button>
-					<button id="gameInstructionsButton" class="button is-info" title="Instructions Button">Instructions</button>
+					<button id="viewAllCardsDesktop" class="button is-info viewAllCardsInPlayBtn" title="View all scoring cards in play">View all cards</button>
+					<button id="newGameBtn" class="button is-light" title="Abandon this game and start a new one">New Game</button>
 					<div class="clearDiv"></div>
 				</div>
 
@@ -208,19 +226,19 @@
 				<ul id="quickViewTabletGoalLayerList">
 
 					<li>
-						<img class="goalLayerScoring" src="img/scoring-goals/bear-large.jpg" alt="Bear Scoring Image" />
+						<img class="goalLayerScoring" src="img/scoring-goals/CD_Bear-A-mini.png" alt="Bear Scoring Image" />
 					</li>
 					<li>
-						<img class="goalLayerScoring" src="img/scoring-goals/elk-large.jpg" alt="Elk Scoring Image" />
+						<img class="goalLayerScoring" src="img/scoring-goals/CD_Elk-A-mini.png" alt="Elk Scoring Image" />
 					</li>
 					<li>
-						<img class="goalLayerScoring" src="img/scoring-goals/fox-large.jpg" alt="Fox Scoring Image" />
+						<img class="goalLayerScoring" src="img/scoring-goals/CD_Fox-A-mini.png" alt="Fox Scoring Image" />
 					</li>
 					<li>
-						<img class="goalLayerScoring" src="img/scoring-goals/hawk-large.jpg" alt="Hawk Scoring Image" />
+						<img class="goalLayerScoring" src="img/scoring-goals/CD_Hawk-A-mini.png" alt="Hawk Scoring Image" />
 					</li>
 					<li>
-						<img class="goalLayerScoring" src="img/scoring-goals/salmon-large.jpg" alt="Salmon Scoring Image" />
+						<img class="goalLayerScoring" src="img/scoring-goals/CD_Salmon-A-mini.png" alt="Salmon Scoring Image" />
 					</li>
 
 				</ul>
@@ -230,30 +248,30 @@
 					<div id="mobileGoalThumbnails">
 
 						<div id="quickViewGoalThumnail-bear" class="mobileThumbnail activeQuickViewGoal">
-							<img class="mobileThumbnailImg" src="img/scoring-goals/bear-mobile-end-scoring.jpg" alt="Bear Scoring Thumbnail" />
+							<img class="mobileThumbnailImg" src="img/scoring-goals/CD_Bear-A-mini.png" alt="Bear Scoring Thumbnail" />
 							<img class="mobileThumbnailActiveFrame" src="img/mobileScoringGoal-hover.png" alt="Active Thumbnail Frame" />
 						</div>
 						<div id="quickViewGoalThumnail-elk" class="mobileThumbnail">
-							<img class="mobileThumbnailImg" src="img/scoring-goals/elk-mobile-end-scoring.jpg" alt="Elk Scoring Thumbnail" />
+							<img class="mobileThumbnailImg" src="img/scoring-goals/CD_Elk-A-mini.png" alt="Elk Scoring Thumbnail" />
 						</div>
 						<div id="quickViewGoalThumnail-fox" class="mobileThumbnail">
-							<img class="mobileThumbnailImg" src="img/scoring-goals/fox-mobile-end-scoring.jpg" alt="Fox Scoring Thumbnail" />
+							<img class="mobileThumbnailImg" src="img/scoring-goals/CD_Fox-A-mini.png" alt="Fox Scoring Thumbnail" />
 						</div>
 						<div id="quickViewGoalThumnail-hawk" class="mobileThumbnail">
-							<img class="mobileThumbnailImg" src="img/scoring-goals/hawk-mobile-end-scoring.jpg" alt="Hawk Scoring Thumbnail" />
+							<img class="mobileThumbnailImg" src="img/scoring-goals/CD_Hawk-A-mini.png" alt="Hawk Scoring Thumbnail" />
 						</div>
 						<div id="quickViewGoalThumnail-salmon" class="mobileThumbnail">
-							<img class="mobileThumbnailImg" src="img/scoring-goals/salmon-mobile-end-scoring.jpg" alt="Salmon Scoring Thumbnail" />
+							<img class="mobileThumbnailImg" src="img/scoring-goals/CD_Salmon-A-mini.png" alt="Salmon Scoring Thumbnail" />
 						</div>
 
 					</div>
 
 					<div id="quickViewMobileGoalFullImages">
-						<img id="quickViewGoalImg-bear" class="mobileGoalImg activeQuickViewGoalImg" src="img/scoring-goals/bear-large.jpg" alt="Bear Scoring Image" />
-						<img id="quickViewGoalImg-elk" class="mobileGoalImg" src="img/scoring-goals/elk-large.jpg" alt="Elk Scoring Image" />
-						<img id="quickViewGoalImg-fox" class="mobileGoalImg" src="img/scoring-goals/fox-large.jpg" alt="Fox Scoring Image" />
-						<img id="quickViewGoalImg-hawk" class="mobileGoalImg" src="img/scoring-goals/hawk-large.jpg" alt="Hawk Scoring Image" />
-						<img id="quickViewGoalImg-salmon" class="mobileGoalImg" src="img/scoring-goals/salmon-large.jpg" alt="Salmon Scoring Image" />
+						<img id="quickViewGoalImg-bear" class="mobileGoalImg activeQuickViewGoalImg" src="img/scoring-goals/CD_Bear-A-mini.png" alt="Bear Scoring Image" />
+						<img id="quickViewGoalImg-elk" class="mobileGoalImg" src="img/scoring-goals/CD_Elk-A-mini.png" alt="Elk Scoring Image" />
+						<img id="quickViewGoalImg-fox" class="mobileGoalImg" src="img/scoring-goals/CD_Fox-A-mini.png" alt="Fox Scoring Image" />
+						<img id="quickViewGoalImg-hawk" class="mobileGoalImg" src="img/scoring-goals/CD_Hawk-A-mini.png" alt="Hawk Scoring Image" />
+						<img id="quickViewGoalImg-salmon" class="mobileGoalImg" src="img/scoring-goals/CD_Salmon-A-mini.png" alt="Salmon Scoring Image" />
 					</div>
 
 				</div>
@@ -286,23 +304,23 @@
 			<div id="goalsContainer">
 				<div id="bear-ScoringModalTrigger" class="goalScoringThumbnailContainer">
 					<img class="goalScoringToken" src="img/tokens/bear.png" alt="Bear Token Image" />
-					<img class="goalScoringThumbnail" src="img/scoring-goals/bear-thumbnail-desktop.jpg" alt="Bear Thumbnail Image" />
+					<img class="goalScoringThumbnail" src="img/scoring-goals/CD_Bear-A-mini.png" alt="Bear Thumbnail Image" />
 				</div>
 				<div id="elk-ScoringModalTrigger" class="goalScoringThumbnailContainer">
 					<img class="goalScoringToken" src="img/tokens/elk.png" alt="Elk Token Image" />
-					<img class="goalScoringThumbnail" src="img/scoring-goals/elk-thumbnail-desktop.jpg" alt="Elk Thumbnail Image" />
+					<img class="goalScoringThumbnail" src="img/scoring-goals/CD_Elk-A-mini.png" alt="Elk Thumbnail Image" />
 				</div>
 				<div id="fox-ScoringModalTrigger" class="goalScoringThumbnailContainer">
 					<img class="goalScoringToken" src="img/tokens/fox.png" alt="Fox Token Image" />
-					<img class="goalScoringThumbnail" src="img/scoring-goals/fox-thumbnail-desktop.jpg" alt="Fox Thumbnail Image" />
+					<img class="goalScoringThumbnail" src="img/scoring-goals/CD_Fox-A-mini.png" alt="Fox Thumbnail Image" />
 				</div>
 				<div id="hawk-ScoringModalTrigger" class="goalScoringThumbnailContainer">
 					<img class="goalScoringToken" src="img/tokens/hawk.png" alt="Hawk Token Image" />
-					<img class="goalScoringThumbnail" src="img/scoring-goals/hawk-thumbnail-desktop.jpg" alt="Hawk Thumbnail Image" />
+					<img class="goalScoringThumbnail" src="img/scoring-goals/CD_Hawk-A-mini.png" alt="Hawk Thumbnail Image" />
 				</div>
 				<div id="salmon-ScoringModalTrigger" class="goalScoringThumbnailContainer">
 					<img class="goalScoringToken" src="img/tokens/salmon.png" alt="Salmon Token Image" />
-					<img class="goalScoringThumbnail" src="img/scoring-goals/salmon-thumbnail-desktop.jpg" alt="Salmon Thumbnail Image" />
+					<img class="goalScoringThumbnail" src="img/scoring-goals/CD_Salmon-A-mini.png" alt="Salmon Thumbnail Image" />
 				</div>
 			</div>
 
@@ -502,6 +520,29 @@
 	</div>
 
 
+	<div id="cardsInPlayModal" class="modal">
+		<div class="modal-background closableModalBackground"></div>
+		<div class="modal-card">
+			<header class="modal-card-head">
+				<p class="modal-card-title">Scoring Cards in Play</p>
+				<button class="delete closeModalTrigger" aria-label="close" title="Close button"></button>
+			</header>
+			<section class="modal-card-body">
+				<p class="cardsInPlayHelp">These are the 5 scoring decks you locked in for this game.</p>
+				<div class="buttons is-centered cardsInPlayToggle">
+					<button class="button is-small is-info cardsInPlayViewBtn" data-view="cards">Card</button>
+					<button class="button is-small cardsInPlayViewBtn" data-view="tables">Table</button>
+				</div>
+				<div id="cardsInPlayGrid"></div>
+			</section>
+			<footer class="modal-card-foot">
+				<div class="modalButtonsToCenter">
+					<button class="button is-danger closeModalTrigger" title="Close modal">Close</button>
+				</div>
+			</footer>
+		</div>
+	</div>
+
 	<div id="bearScoringModal" class="modal">
 		<div class="modal-background closableModalBackground"></div>
 		<div class="modal-card">
@@ -510,7 +551,7 @@
 				<button class="delete closeModalTrigger" aria-label="close" title="Close button image"></button>
 			</header>
 			<section class="modal-card-body">
-				<img class="goalScoringModalImg" src="img/scoring-goals/bear-large.jpg" alt="Bear Scoring Image" />
+				<img class="goalScoringModalImg" src="img/scoring-goals/CD_Bear-A-full.png" alt="Bear Scoring Image" />
 			</section>
 			<footer class="modal-card-foot">
 				<div class="modalButtonsToCenter">
@@ -528,7 +569,7 @@
 				<button class="delete closeModalTrigger" aria-label="close" title="Close button image"></button>
 			</header>
 			<section class="modal-card-body">
-				<img class="goalScoringModalImg" src="img/scoring-goals/salmon-large.jpg" alt="Salmon Scoring Image" />
+				<img class="goalScoringModalImg" src="img/scoring-goals/CD_Salmon-A-full.png" alt="Salmon Scoring Image" />
 			</section>
 			<footer class="modal-card-foot">
 				<div class="modalButtonsToCenter">
@@ -546,7 +587,7 @@
 				<button class="delete closeModalTrigger" aria-label="close" title="Close button image"></button>
 			</header>
 			<section class="modal-card-body">
-				<img class="goalScoringModalImg" src="img/scoring-goals/hawk-large.jpg" alt="Hawk Scoring Image" />
+				<img class="goalScoringModalImg" src="img/scoring-goals/CD_Hawk-A-full.png" alt="Hawk Scoring Image" />
 			</section>
 			<footer class="modal-card-foot">
 				<div class="modalButtonsToCenter">
@@ -564,7 +605,7 @@
 				<button class="delete closeModalTrigger" aria-label="close" title="Close button image"></button>
 			</header>
 			<section class="modal-card-body">
-				<img class="goalScoringModalImg" src="img/scoring-goals/elk-large.jpg" alt="Elk Scoring Image" />
+				<img class="goalScoringModalImg" src="img/scoring-goals/CD_Elk-A-full.png" alt="Elk Scoring Image" />
 			</section>
 			<footer class="modal-card-foot">
 				<div class="modalButtonsToCenter">
@@ -582,7 +623,7 @@
 				<button class="delete closeModalTrigger" aria-label="close" title="Close button image"></button>
 			</header>
 			<section class="modal-card-body">
-				<img class="goalScoringModalImg" src="img/scoring-goals/fox-large.jpg" alt="Fox Scoring Image" />
+				<img class="goalScoringModalImg" src="img/scoring-goals/CD_Fox-A-full.png" alt="Fox Scoring Image" />
 			</section>
 			<footer class="modal-card-foot">
 				<div class="modalButtonsToCenter">
