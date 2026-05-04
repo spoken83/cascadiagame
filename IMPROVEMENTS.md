@@ -60,5 +60,3 @@ Tracking ideas that were proposed but not implemented. Pick up any item independ
 ### Habitat bonus is homebrew, not the printed solo rule
 `calculateHabitatScoring` (`js/scripts.js:3888`) awards `+2` when a corridor exceeds 6 tiles — a fixed threshold, not the official Cascadia rule. The printed multiplayer rule is "longest corridor wins +2 (or +1 each on tie)"; the official "Beat Your Best" solo variant compares against the player's own historical best. To match the official solo variant, persist per-terrain best `largestSet` values in `localStorage` and award +2 when the current run beats (or equals) the saved best.
 
-### Wildlife scoring decks B/C/D wiring
-`var selectedDecks` (`js/scripts.js:174`) tracks the chosen deck per wildlife, and the UI surfaces it correctly, but the comment at line 172 notes that the actual point math in `calculate*TokenScoring` only fully implements deck A. Verify whether each `calculate*` switches on `deck` for B/C/D and update where missing.

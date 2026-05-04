@@ -169,8 +169,7 @@ function checkScreenWidth(){
 
 // Tracks the randomly-selected scoring deck (A/B/C/D) per wildlife.
 // Populated by selectRandomDecks() on page load and on re-shuffle.
-// NOTE: Scoring code in calculate*TokenScoring() still uses Deck A formulas
-// regardless of what's selected here — wiring up B/C/D is a separate task.
+// calculate*TokenScoring() switches on the selected deck for all four variants.
 var selectedDecks = { bear: 'A', elk: 'A', fox: 'A', hawk: 'A', salmon: 'A' };
 
 var deckLetters = ['A', 'B', 'C', 'D'];
