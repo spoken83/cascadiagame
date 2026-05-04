@@ -2285,97 +2285,43 @@ function removeSoloTilesTokens(){
 function pickNewTilesTokens() {
 
 	$('.finishedNatureCubePlacement').removeClass('finishedNatureCubePlacement');
-	// create arrays to store the left over tiles and tokens (after the human player picking 1 tile and 1 token, and the solo AI picking 1 tile and 1 token, there should always be 2 tiles and 2 tokens left over)
-	var leftOverTiles = [];
-	var leftOverTokens = [];
 
-	for (let i = 0; i < reverseTileTokenOrder.length; i++) {
-		// since the .tileContainer is either moved (human player), or removed from the game (solo AI), checking to see if it exists gives an indication if that particular tile is left over
-		if($('.tokenTileContainer[tokentilenum="' + reverseTileTokenOrder[i] + '"] .tileContainer').length) {
-			// if it does exists, store the number of which container it corresponds with in the leftOverTiles array
-			leftOverTiles.push(reverseTileTokenOrder[i]);
+	// In-place refill: each of the four slots is a fixed position. Whatever
+	// tiles/tokens the player and solo AI left behind STAY where they are —
+	// only the missing tiles and missing tokens get replaced. This matches
+	// the physical game (the four columns don't shift) and crucially keeps
+	// existing tile/token pairings intact when a nature token was used to
+	// take a tile from one slot and a token from a different slot.
+	var slots = [0, 1, 2, 3];
+
+	for (var i = 0; i < slots.length; i++) {
+		var slot = slots[i];
+		var $container = $('.tokenTileContainer[tokentilenum="' + slot + '"]');
+		if (!$container.length) continue;
+
+		var hasTile = $container.find('.tileContainer').length > 0;
+		var hasToken = $container.find('.tokenContainer .token').length > 0;
+
+		if (!hasTile) {
+			var thisTile = allTiles.splice(0, 1)[0];
+			if (thisTile.habitats.length == 2) {
+				thisTile.rotation = randomRotation();
+			}
+			var $newTile = $(generateDisplayTile(thisTile)).hide();
+			$container.find('.tokenContainer').before($newTile);
+			$newTile.fadeIn(500);
+		}
+
+		if (!hasToken) {
+			var thisToken = allTokens.splice(0, 1)[0];
+			$container.find('.tokenContainer').attr('wildlifetoken', thisToken);
+			var $newToken = $('<img class="token" src="img/tokens/' + thisToken + '.png" />').hide();
+			$container.find('.tokenContainer').append($newToken);
+			$newToken.fadeIn(500);
 		}
 	}
-
-	for (let j = 0; j < reverseTileTokenOrder.length; j++) {
-		// since the .token is either moved (human player), or removed from the game (solo AI), checking to see if it exists gives an indication if that particular token is left over
-		if($('.tokenTileContainer[tokentilenum="' + reverseTileTokenOrder[j] + '"] .tokenContainer .token').length) {
-			// if it does exists, store the number of which container it corresponds with in the leftOverTokens array
-			leftOverTokens.push(reverseTileTokenOrder[j]);
-		}
-	}
-
-	// the -1 and -2 containers have css positioning them offscreen, so that once they are created, the can be seamlessly moved into the correct places to replace the moved down tile+token combinations
-	var newTileTokenContainerPositions = [-1, -2];
-
-	// loop through the two values in order to create new tile+token containers with the new tile+token information
-	for (let k = 0; k < newTileTokenContainerPositions.length; k++) {
-
-		// target the next tile information in the allTiles array
-		// splicing the first item removes it from the array and transfers the information into the "thisTile" variable
-		var thisTile = allTiles.splice(0, 1);
-
-		// if the new tile has a dual habitat, apply a random rotation to mix it up (otherwise all tiles would come out with the straight line down the middle of them....BORING!!!!)
-		if(thisTile[0].habitats.length == 2) {
-			// update the rotation value with a random figure
-			thisTile[0].rotation = randomRotation();
-		}
-		
-		// splice the next token info, and transfer it into the "thisToken" variable
-		var thisToken = allTokens.splice(0, 1);
-
-		// displayedTokens[currentTileTokenContainer] = thisToken[0];
-
-		// generate the tile and token html
-		var nextTokenTileHTML = '<div class="tokenTileContainer" tokentilenum="' + newTileTokenContainerPositions[k] + '">';
-		nextTokenTileHTML+= generateDisplayTile(thisTile[0]);
-		nextTokenTileHTML+= '<div class="tokenContainer" wildlifetoken="' + thisToken[0] + '">';
-		nextTokenTileHTML+= '<img class="token" src="img/tokens/' + thisToken[0] + '.png" />';
-		nextTokenTileHTML+= '</div>';
-		nextTokenTileHTML+= '</div>';
-		// add the newly created tile+token container into the same container with the rest of them
-		// because of the attributes assigned to these container, they will generate off screen initially
-		$('#tileTokenContainer').append(nextTokenTileHTML);
-	}
-
-	// the tiles that are left over are pushed down into the bottom two slots
-	$('.tokenTileContainer[tokentilenum="' + leftOverTiles[0] + '"] .tileContainer').addClass('movingElementOpacity');
-	$('.tokenTileContainer[tokentilenum="' + leftOverTiles[0] + '"] .tileContainer').parentToAnimate($('.tokenTileContainer[tokentilenum="3"]'), 1000);
-	$('.tokenTileContainer[tokentilenum="' + leftOverTiles[1] + '"] .tileContainer').addClass('movingElementOpacity');
-	$('.tokenTileContainer[tokentilenum="' + leftOverTiles[1] + '"] .tileContainer').parentToAnimate($('.tokenTileContainer[tokentilenum="2"]'), 1000);
-
-	// the new tiles that are generated offscreen are pushed down from offscreen into the top two slots
-	$('.tokenTileContainer[tokentilenum="-1"] .tileContainer').addClass('movingElementOpacity');
-	$('.tokenTileContainer[tokentilenum="-1"] .tileContainer').parentToAnimate($('.tokenTileContainer[tokentilenum="1"]'), 1000);
-	$('.tokenTileContainer[tokentilenum="-2"] .tileContainer').addClass('movingElementOpacity');
-	$('.tokenTileContainer[tokentilenum="-2"] .tileContainer').parentToAnimate($('.tokenTileContainer[tokentilenum="0"]'), 1000);
-
-	// the new tiles that are generated offscreen are pushed down from offscreen into the top two slots
-	// at the same time, the wildlifetoken attribute is updated on the tokenContainer to reflect the new wildlifetoken that has just been moved into it
-	$('.tokenTileContainer[tokentilenum="' + leftOverTokens[0] + '"] .tokenContainer .token').addClass('movingElementOpacity');
-	$('.tokenTileContainer[tokentilenum="' + leftOverTokens[0] + '"] .tokenContainer .token').parentToAnimate($('.tokenTileContainer[tokentilenum="3"] .tokenContainer'), 1000);
-	$('.tokenTileContainer[tokentilenum="3"] .tokenContainer').attr('wildlifetoken', $('.tokenTileContainer[tokentilenum="' + leftOverTokens[0] + '"] .tokenContainer').attr('wildlifetoken'));
-	$('.tokenTileContainer[tokentilenum="' + leftOverTokens[1] + '"] .tokenContainer .token').addClass('movingElementOpacity');
-	$('.tokenTileContainer[tokentilenum="' + leftOverTokens[1] + '"] .tokenContainer .token').parentToAnimate($('.tokenTileContainer[tokentilenum="2"] .tokenContainer'), 1000);
-	$('.tokenTileContainer[tokentilenum="2"] .tokenContainer').attr('wildlifetoken', $('.tokenTileContainer[tokentilenum="' + leftOverTokens[1] + '"] .tokenContainer').attr('wildlifetoken'));
-
-	// the new tokens that are generated offscreen are pushed down from offscreen into the top two slots
-	// at the same time, the wildlifetoken attribute is updated on the tokenContainer to reflect the new wildlifetoken that has just been moved into it
-	$('.tokenTileContainer[tokentilenum="-1"] .tokenContainer .token').addClass('movingElementOpacity');
-	$('.tokenTileContainer[tokentilenum="-1"] .tokenContainer .token').parentToAnimate($('.tokenTileContainer[tokentilenum="1"] .tokenContainer'), 1000);
-	$('.tokenTileContainer[tokentilenum="1"] .tokenContainer').attr('wildlifetoken', $('.tokenTileContainer[tokentilenum="-1"] .tokenContainer').attr('wildlifetoken'));
-	$('.tokenTileContainer[tokentilenum="-2"] .tokenContainer .token').addClass('movingElementOpacity');
-	$('.tokenTileContainer[tokentilenum="-2"] .tokenContainer .token').parentToAnimate($('.tokenTileContainer[tokentilenum="0"] .tokenContainer'), 1000);
-	$('.tokenTileContainer[tokentilenum="0"] .tokenContainer').attr('wildlifetoken', $('.tokenTileContainer[tokentilenum="-2"] .tokenContainer').attr('wildlifetoken'));
 
 	setTimeout(function(){
-		// because enough time has elapsed in order for all of the tiles and tokens to move to the new correct containers, the temporary containers to hold the new tile and token information can be deleted
-		$('.tokenTileContainer[tokentilenum="-1"]').remove();
-		$('.tokenTileContainer[tokentilenum="-2"]').remove();
-
-		// remove the class that enforced .75 opacity for the animation stage
-		$('.movingElementOpacity').removeClass('movingElementOpacity');	
-		
 		// since there is no active wildlife now, reset the global variable
 		currentChosenWildlife = '';
 
